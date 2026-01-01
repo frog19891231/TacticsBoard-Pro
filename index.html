@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TacticsBoard Pro v5.1</title>
-    <!-- 引入 pako 進行數據壓縮與解壓縮，確保分享代碼長度縮短 -->
+    <title>TacticsBoard Pro v5.2</title>
+    <!-- 引入 pako 進行數據壓縮與解壓縮 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     
     <style>
@@ -22,6 +22,11 @@
             background-color: var(--bg-color); 
             color: var(--text-color); 
             padding-bottom: 50px;
+            overflow-x: hidden;
+            /* 防止行動端長按彈出菜單影響拖曳 */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
         #app-container { 
             max-width: 1100px; 
@@ -116,6 +121,7 @@
             display: flex;
             padding: 20px;
             justify-content: center;
+            position: relative;
         }
         #chessboard-container {
             display: inline-grid; 
@@ -125,6 +131,7 @@
             gap: 1px; 
             padding: 1px; 
             user-select: none;
+            position: relative;
         }
         .cell {
             width: 60px; height: 60px;
@@ -147,6 +154,7 @@
             box-shadow: 0 3px 6px rgba(0,0,0,0.6);
             text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
             z-index: 5;
+            pointer-events: none; /* 棋子本身不阻擋格子的點擊事件 */
         }
         .unit.small-text { font-size: 10px; }
         .ally { background: linear-gradient(135deg, #2ecc71, #27ae60); }
@@ -165,6 +173,16 @@
         .facing-bottom { transform: translateX(-50%) rotate(180deg); }
         .facing-left { transform: translateX(-50%) rotate(270deg); }
 
+        /* 拖曳中的虛擬棋子樣式 */
+        #ghost-unit {
+            position: fixed;
+            pointer-events: none;
+            opacity: 0.7;
+            z-index: 999;
+            display: none;
+            transform: translate(-50%, -50%);
+        }
+
         .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); }
         .modal-content { 
             background: var(--panel-bg); margin: 5% auto; padding: 25px; 
@@ -178,7 +196,7 @@
 <body>
 
     <header>
-        <h1 id="ui-title">♟️ TacticsBoard Pro v5.1</h1>
+        <h1 id="ui-title">♟️ TacticsBoard Pro v5.2</h1>
         <button class="lang-btn" onclick="toggleLanguage()">🌐 EN / 中文</button>
     </header>
 
@@ -209,6 +227,9 @@
         </section>
     </div>
 
+    <!-- 虛擬棋子 (拖曳用) -->
+    <div id="ghost-unit" class="unit"></div>
+
     <!-- 編輯 Modal -->
     <div id="edit-modal" class="modal">
         <div class="modal-content">
@@ -223,7 +244,6 @@
                     </select>
                 </div>
 
-                <!-- 棋子專用欄位 -->
                 <div id="unit-fields">
                     <div class="form-group">
                         <label id="ui-label-faction">陣營：</label>
@@ -253,7 +273,6 @@
                     </div>
                 </div>
 
-                <!-- 地形專用欄位 -->
                 <div id="cell-fields" style="display:none">
                     <div class="form-group">
                         <label id="ui-label-cell-color">背景顏色：</label>
@@ -271,7 +290,6 @@
         </div>
     </div>
 
-    <!-- 分享代碼 Modal -->
     <div id="code-modal" class="modal">
         <div class="modal-content">
             <h4 id="code-title">攻略代碼</h4>
@@ -289,8 +307,8 @@
     <script>
         const langPack = {
             zh: {
-                pageTitle: "TacticsBoard Pro v5.1 - 戰棋攻略模擬器",
-                title: "♟️ TacticsBoard Pro v5.1",
+                pageTitle: "TacticsBoard Pro v5.2 - 戰棋攻略模擬器",
+                title: "♟️ TacticsBoard Pro v5.2",
                 ioTitle: "🛠️ 傳輸與工具",
                 historyTitle: "🎞️ 攻略進程 (快照)",
                 btnExport: "📤 產生分享代碼",
@@ -329,8 +347,8 @@
                 initStep: "初始狀態"
             },
             en: {
-                pageTitle: "TacticsBoard Pro v5.1 - Tactics Simulator",
-                title: "♟️ TacticsBoard Pro v5.1",
+                pageTitle: "TacticsBoard Pro v5.2 - Tactics Simulator",
+                title: "♟️ TacticsBoard Pro v5.2",
                 ioTitle: "🛠️ Tools & Transfer",
                 historyTitle: "🎞️ Timeline (Snapshots)",
                 btnExport: "📤 Export Code",
@@ -375,6 +393,12 @@
         let boardState = [], unitList = {}, nextUnitId = 1;
         let snapshots = [], currentSnapshotIdx = -1;
         let editR = -1, editC = -1;
+
+        // 長按拖曳相關變數
+        let longPressTimer = null;
+        let isDragging = false;
+        let dragSourceId = null;
+        let dragSourceCell = { r: -1, c: -1 };
 
         function toggleLanguage() {
             currentLang = (currentLang === 'zh') ? 'en' : 'zh';
@@ -443,6 +467,8 @@
                 for (let c = 0; c < BOARD_WIDTH; c++) {
                     const cell = document.createElement('div');
                     cell.className = 'cell';
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
                     const s = boardState[r][c];
                     cell.style.backgroundColor = s.cellColor;
                     
@@ -453,14 +479,20 @@
                         cell.appendChild(note);
                     }
 
-                    cell.onclick = () => openEditModal(r, c);
-                    
+                    // 事件綁定
+                    cell.onmousedown = (e) => handleStart(e, r, c);
+                    cell.ontouchstart = (e) => handleStart(e, r, c);
+                    cell.onclick = (e) => {
+                        if (isDragging) return;
+                        openEditModal(r, c);
+                    };
+
                     const uid = Object.keys(unitList).find(id => unitList[id].r === r && unitList[id].c === c);
-                    if(uid) {
+                    // 如果正在拖曳中，暫時不渲染原位的棋子
+                    if(uid && !(isDragging && dragSourceId === uid)) {
                         const u = unitList[uid];
                         const unitEl = document.createElement('div');
                         unitEl.className = `unit ${u.faction}`;
-                        unitEl.title = u.desc || ""; 
                         unitEl.textContent = u.note || uid;
                         if(unitEl.textContent.length > 3) unitEl.classList.add('small-text');
                         
@@ -475,6 +507,91 @@
                 }
             }
         }
+
+        // --- 拖曳邏輯 ---
+
+        function handleStart(e, r, c) {
+            const uid = Object.keys(unitList).find(id => unitList[id].r === r && unitList[id].c === c);
+            if (!uid) return;
+
+            longPressTimer = setTimeout(() => {
+                startDrag(uid, r, c, e);
+            }, 500);
+
+            const clearTimer = () => clearTimeout(longPressTimer);
+            window.addEventListener('mouseup', clearTimer, { once: true });
+            window.addEventListener('touchend', clearTimer, { once: true });
+            window.addEventListener('mousemove', clearTimer, { once: true });
+        }
+
+        function startDrag(uid, r, c, e) {
+            isDragging = true;
+            dragSourceId = uid;
+            dragSourceCell = { r, c };
+            
+            const ghost = document.getElementById('ghost-unit');
+            const u = unitList[uid];
+            ghost.className = `unit ${u.faction}`;
+            ghost.textContent = u.note || uid;
+            ghost.style.display = 'flex';
+            
+            updateGhostPos(e);
+            renderBoard(); // 重新渲染棋盤，原位會暫時留空
+
+            window.addEventListener('mousemove', updateGhostPos);
+            window.addEventListener('touchmove', updateGhostPos, { passive: false });
+            window.addEventListener('mouseup', endDrag, { once: true });
+            window.addEventListener('touchend', endDrag, { once: true });
+        }
+
+        function updateGhostPos(e) {
+            if (!isDragging) return;
+            if (e.cancelable) e.preventDefault();
+            
+            const ghost = document.getElementById('ghost-unit');
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            ghost.style.left = clientX + 'px';
+            ghost.style.top = clientY + 'px';
+        }
+
+        function endDrag(e) {
+            if (!isDragging) return;
+            
+            const ghost = document.getElementById('ghost-unit');
+            ghost.style.display = 'none';
+            
+            const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+            const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+            
+            // 找出滑鼠下的格子
+            const el = document.elementFromPoint(clientX, clientY);
+            const cell = el ? el.closest('.cell') : null;
+
+            if (cell) {
+                const tr = parseInt(cell.dataset.r);
+                const tc = parseInt(cell.dataset.c);
+                
+                // 檢查目標位置是否已有棋子
+                const targetUid = Object.keys(unitList).find(id => unitList[id].r === tr && unitList[id].c === tc && id !== dragSourceId);
+                
+                if (!targetUid) {
+                    // 移動棋子
+                    unitList[dragSourceId].r = tr;
+                    unitList[dragSourceId].c = tc;
+                }
+            }
+
+            isDragging = false;
+            dragSourceId = null;
+            
+            window.removeEventListener('mousemove', updateGhostPos);
+            window.removeEventListener('touchmove', updateGhostPos);
+            renderBoard();
+        }
+
+        // --- 編輯 Modal 邏輯 ---
 
         function openEditModal(r, c) {
             editR = r; editC = c;
@@ -563,7 +680,7 @@
 
         function openExportModal() {
             try {
-                const payload = JSON.stringify({ v: "5.1", s: snapshots });
+                const payload = JSON.stringify({ v: "5.2", s: snapshots });
                 const compressed = pako.deflate(new TextEncoder().encode(payload));
                 const code = btoa(String.fromCharCode.apply(null, compressed));
                 document.getElementById('code-title').innerText = langPack[currentLang].exportTitle;
