@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TacticsBoard Pro v5.1</title>
+    <!-- 引入 pako 進行數據壓縮與解壓縮，確保分享代碼長度縮短 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #2c3e50;
+            --panel-bg: #34495e;
+            --accent-color: #3498db;
+            --highlight-color: #f1c40f;
+            --text-color: #ecf0f1;
+        }
+
+        body { 
+            font-family: 'Segoe UI', 'Microsoft JhengHei', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            background-color: var(--bg-color); 
+            color: var(--text-color); 
+            padding-bottom: 50px;
+        }
+        #app-container { 
+            max-width: 1100px; 
+            margin: 30px auto; 
+            background: var(--panel-bg); 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5); 
+        }
+        h1, h3 { color: var(--highlight-color); text-shadow: 1px 1px 2px #000; margin-top: 0;}
+        header { 
+            text-align: center; 
+            margin-bottom: 20px; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        section { 
+            margin-bottom: 20px; 
+            padding: 15px; 
+            background-color: var(--bg-color); 
+            border: 1px solid var(--accent-color); 
+            border-radius: 6px; 
+        }
+        .controls-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        button {
+            background-color: var(--accent-color);
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        button:hover:not(:disabled) { background-color: #2980b9; transform: translateY(-1px); }
+        button.success { background-color: #27ae60; }
+        button.secondary { background-color: #95a5a6; }
+        button.lang-btn { background-color: #8e44ad; }
+
+        label { margin-right: 5px; font-weight: bold; }
+        input[type="number"], input[type="text"], select, textarea { 
+            padding: 8px; 
+            border-radius: 4px; 
+            border: 1px solid #5d748f; 
+            background: #4a627a; 
+            color: white;
+            box-sizing: border-box;
+        }
+        textarea { resize: vertical; min-height: 80px; font-family: inherit; }
+        
+        #history-tabs-container {
+            margin-top: 15px;
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+            border-top: 1px dashed #5d748f;
+            padding-top: 10px;
+        }
+        .history-tab {
+            background-color: #4a627a;
+            border: 1px solid #5d748f;
+            color: #bdc3c7;
+            padding: 6px 12px;
+            border-radius: 15px;
+            white-space: nowrap;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+        .history-tab.active {
+            background-color: var(--highlight-color);
+            color: #2c3e50;
+            border-color: var(--highlight-color);
+            font-weight: bold;
+        }
+
+        #board-display {
+            overflow-x: auto;
+            display: flex;
+            padding: 20px;
+            justify-content: center;
+        }
+        #chessboard-container {
+            display: inline-grid; 
+            border: 4px solid #1abc9c;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7);
+            background-color: #34495e; 
+            gap: 1px; 
+            padding: 1px; 
+            user-select: none;
+        }
+        .cell {
+            width: 60px; height: 60px;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; position: relative;
+            background-color: #5d748f; 
+        }
+        .cell:hover { outline: 2px solid var(--highlight-color); z-index: 10; }
+        .cell-note-label {
+            position: absolute; bottom: 2px; right: 2px;
+            font-size: 9px; color: rgba(255,255,255,0.7); pointer-events: none;
+            background: rgba(0,0,0,0.3); padding: 0 2px; border-radius: 2px;
+        }
+
+        .unit {
+            width: 50px; height: 50px;
+            border-radius: 50%; border: 2px solid var(--highlight-color); 
+            display: flex; justify-content: center; align-items: center;
+            font-weight: 700; color: white; font-size: 14px; position: relative;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.6);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            z-index: 5;
+        }
+        .unit.small-text { font-size: 10px; }
+        .ally { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+        .enemy { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .neutral { background: linear-gradient(135deg, #f39c12, #e67e22); }
+
+        .unit-arrow {
+            position: absolute; width: 0; height: 0; 
+            border-left: 5px solid transparent; border-right: 5px solid transparent;
+            border-bottom: 8px solid var(--highlight-color); 
+            top: -12px; left: 50%; transform: translateX(-50%);
+            transform-origin: center 28px;
+        }
+        .facing-top { transform: translateX(-50%) rotate(0deg); }
+        .facing-right { transform: translateX(-50%) rotate(90deg); }
+        .facing-bottom { transform: translateX(-50%) rotate(180deg); }
+        .facing-left { transform: translateX(-50%) rotate(270deg); }
+
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); }
+        .modal-content { 
+            background: var(--panel-bg); margin: 5% auto; padding: 25px; 
+            width: 90%; max-width: 450px; border-radius: 10px; border: 2px solid var(--accent-color);
+            max-height: 85vh; overflow-y: auto;
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1 id="ui-title">♟️ TacticsBoard Pro v5.1</h1>
+        <button class="lang-btn" onclick="toggleLanguage()">🌐 EN / 中文</button>
+    </header>
+
+    <div id="app-container">
+        <section>
+            <h3 id="ui-io-title">🛠️ 傳輸與工具</h3>
+            <div class="controls-row">
+                <button onclick="openExportModal()" id="btn-export">📤 產生分享代碼</button>
+                <button onclick="openImportModal()" id="btn-import">📥 讀取分享代碼</button>
+                <div style="margin-left: auto;">
+                    <label>W:</label> <input type="number" id="board-width" value="6" style="width:50px">
+                    <label>H:</label> <input type="number" id="board-height" value="8" style="width:50px">
+                    <button class="secondary" onclick="initializeBoard()" id="btn-reset">🔄 重置</button>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h3 id="ui-history-title">🎞️ 攻略進程 (快照)</h3>
+            <div class="controls-row">
+                <button class="success" onclick="takeSnapshot()" id="btn-snapshot">📸 建立當前快照</button>
+            </div>
+            <div id="history-tabs-container"></div>
+        </section>
+        
+        <section id="board-display">
+            <div id="chessboard-container"></div>
+        </section>
+    </div>
+
+    <!-- 編輯 Modal -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <h4 style="margin-top:0" id="ui-edit-title">✏️ 編輯單元</h4>
+            <div id="edit-form">
+                <div class="form-group">
+                    <label id="ui-label-type">類型：</label>
+                    <select id="edit-type" style="width:100%;" onchange="toggleEditFields()">
+                        <option value="unit" id="opt-unit">棋子 (Unit)</option>
+                        <option value="cell" id="opt-cell">地形 (Cell)</option>
+                        <option value="clear" id="opt-clear">清除 (Clear)</option>
+                    </select>
+                </div>
+
+                <!-- 棋子專用欄位 -->
+                <div id="unit-fields">
+                    <div class="form-group">
+                        <label id="ui-label-faction">陣營：</label>
+                        <select id="edit-faction" style="width:100%;">
+                            <option value="ally" id="opt-ally">我方</option>
+                            <option value="enemy" id="opt-enemy">敵方</option>
+                            <option value="neutral" id="opt-neutral">中立</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label id="ui-label-facing">朝向：</label>
+                        <select id="edit-facing" style="width:100%;">
+                            <option value="" id="opt-none">無</option>
+                            <option value="top" id="opt-top">上</option>
+                            <option value="bottom" id="opt-bottom">下</option>
+                            <option value="left" id="opt-left">左</option>
+                            <option value="right" id="opt-right">右</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label id="ui-label-note">棋子簡稱 (中央顯示)：</label>
+                        <input type="text" id="edit-unit-note" style="width:100%;" maxlength="5">
+                    </div>
+                    <div class="form-group">
+                        <label id="ui-label-desc">詳細備註 (戰術說明)：</label>
+                        <textarea id="edit-unit-desc" style="width:100%;"></textarea>
+                    </div>
+                </div>
+
+                <!-- 地形專用欄位 -->
+                <div id="cell-fields" style="display:none">
+                    <div class="form-group">
+                        <label id="ui-label-cell-color">背景顏色：</label>
+                        <input type="color" id="edit-cell-color" style="width:100%; height:40px;">
+                    </div>
+                    <div class="form-group">
+                        <label id="ui-label-cell-note">地形備註 (右下顯示)：</label>
+                        <input type="text" id="edit-cell-note" style="width:100%;" maxlength="10">
+                    </div>
+                </div>
+
+                <button onclick="applyEdit()" style="width:100%; margin-top:10px;" class="success" id="btn-confirm">確認</button>
+                <button onclick="closeModals()" style="width:100%; margin-top:5px;" class="secondary" id="btn-cancel">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分享代碼 Modal -->
+    <div id="code-modal" class="modal">
+        <div class="modal-content">
+            <h4 id="code-title">攻略代碼</h4>
+            <textarea id="code-area" style="width: 100%; height: 200px; background: #1a252f; color: #2ecc71; font-family: monospace; font-size: 11px;"></textarea>
+            <div id="export-actions" style="margin-top:10px">
+                <button onclick="copyToClipboard()" class="success" id="btn-copy" style="width:100%">複製代碼</button>
+            </div>
+            <div id="import-actions" style="display:none; margin-top:10px">
+                <button onclick="processImport()" class="success" id="btn-do-import" style="width:100%">執行匯入</button>
+            </div>
+            <button onclick="closeModals()" class="secondary" style="margin-top:10px; width: 100%;" id="btn-close">關閉</button>
+        </div>
+    </div>
+
+    <script>
+        const langPack = {
+            zh: {
+                pageTitle: "TacticsBoard Pro v5.1 - 戰棋攻略模擬器",
+                title: "♟️ TacticsBoard Pro v5.1",
+                ioTitle: "🛠️ 傳輸與工具",
+                historyTitle: "🎞️ 攻略進程 (快照)",
+                btnExport: "📤 產生分享代碼",
+                btnImport: "📥 讀取分享代碼",
+                btnReset: "🔄 重置",
+                btnSnapshot: "📸 建立當前快照",
+                editTitle: "✏️ 編輯單元",
+                labelType: "類型：",
+                optUnit: "棋子 (Unit)",
+                optCell: "地形 (Cell)",
+                optClear: "清除 (Clear)",
+                labelFaction: "陣營：",
+                optAlly: "我方",
+                optEnemy: "敵方",
+                optNeutral: "中立",
+                labelFacing: "朝向：",
+                optNone: "無",
+                optTop: "上",
+                optBottom: "下",
+                optLeft: "左",
+                optRight: "右",
+                labelNote: "棋子簡稱 (中央顯示)：",
+                labelDesc: "詳細備註 (戰術說明)：",
+                labelCellColor: "背景顏色：",
+                labelCellNote: "地形備註 (右下顯示)：",
+                btnConfirm: "確認",
+                btnCancel: "取消",
+                exportTitle: "📤 您的攻略代碼",
+                importTitle: "📥 請貼入攻略代碼",
+                btnCopy: "複製代碼",
+                btnDoImport: "執行匯入",
+                btnClose: "關閉",
+                msgCopy: "代碼已複製！",
+                msgImportSuccess: "匯入成功！",
+                msgImportFail: "代碼解析失敗，請檢查格式！",
+                initStep: "初始狀態"
+            },
+            en: {
+                pageTitle: "TacticsBoard Pro v5.1 - Tactics Simulator",
+                title: "♟️ TacticsBoard Pro v5.1",
+                ioTitle: "🛠️ Tools & Transfer",
+                historyTitle: "🎞️ Timeline (Snapshots)",
+                btnExport: "📤 Export Code",
+                btnImport: "📥 Import Code",
+                btnReset: "🔄 Reset",
+                btnSnapshot: "📸 Snapshot",
+                editTitle: "✏️ Edit Element",
+                labelType: "Type:",
+                optUnit: "Unit",
+                optCell: "Cell",
+                optClear: "Clear",
+                labelFaction: "Faction:",
+                optAlly: "Ally",
+                optEnemy: "Enemy",
+                optNeutral: "Neutral",
+                labelFacing: "Facing:",
+                optNone: "None",
+                optTop: "Top",
+                optBottom: "Bottom",
+                optLeft: "Left",
+                optRight: "Right",
+                labelNote: "Label (Short):",
+                labelDesc: "Tactical Notes (Long):",
+                labelCellColor: "Cell Color:",
+                labelCellNote: "Terrain Note:",
+                btnConfirm: "Confirm",
+                btnCancel: "Cancel",
+                exportTitle: "📤 Your Shared Code",
+                importTitle: "📥 Paste Shared Code",
+                btnCopy: "Copy Code",
+                btnDoImport: "Import Now",
+                btnClose: "Close",
+                msgCopy: "Copied!",
+                msgImportSuccess: "Import success!",
+                msgImportFail: "Invalid code format!",
+                initStep: "Initial State"
+            }
+        };
+
+        let currentLang = 'zh';
+        let BOARD_WIDTH = 6, BOARD_HEIGHT = 8;
+        let boardState = [], unitList = {}, nextUnitId = 1;
+        let snapshots = [], currentSnapshotIdx = -1;
+        let editR = -1, editC = -1;
+
+        function toggleLanguage() {
+            currentLang = (currentLang === 'zh') ? 'en' : 'zh';
+            updateUI();
+        }
+
+        function updateUI() {
+            const t = langPack[currentLang];
+            document.title = t.pageTitle;
+            document.getElementById('ui-title').innerText = t.title;
+            document.getElementById('ui-io-title').innerText = t.ioTitle;
+            document.getElementById('ui-history-title').innerText = t.historyTitle;
+            document.getElementById('btn-export').innerText = t.btnExport;
+            document.getElementById('btn-import').innerText = t.btnImport;
+            document.getElementById('btn-reset').innerText = t.btnReset;
+            document.getElementById('btn-snapshot').innerText = t.btnSnapshot;
+            document.getElementById('ui-edit-title').innerText = t.editTitle;
+            document.getElementById('ui-label-type').innerText = t.labelType;
+            document.getElementById('opt-unit').innerText = t.optUnit;
+            document.getElementById('opt-cell').innerText = t.optCell;
+            document.getElementById('opt-clear').innerText = t.optClear;
+            document.getElementById('ui-label-faction').innerText = t.labelFaction;
+            document.getElementById('opt-ally').innerText = t.optAlly;
+            document.getElementById('opt-enemy').innerText = t.optEnemy;
+            document.getElementById('opt-neutral').innerText = t.optNeutral;
+            document.getElementById('ui-label-facing').innerText = t.labelFacing;
+            document.getElementById('opt-none').innerText = t.optNone;
+            document.getElementById('opt-top').innerText = t.optTop;
+            document.getElementById('opt-bottom').innerText = t.optBottom;
+            document.getElementById('opt-left').innerText = t.optLeft;
+            document.getElementById('opt-right').innerText = t.optRight;
+            document.getElementById('ui-label-note').innerText = t.labelNote;
+            document.getElementById('ui-label-desc').innerText = t.labelDesc;
+            document.getElementById('ui-label-cell-color').innerText = t.labelCellColor;
+            document.getElementById('ui-label-cell-note').innerText = t.labelCellNote;
+            document.getElementById('btn-confirm').innerText = t.btnConfirm;
+            document.getElementById('btn-cancel').innerText = t.btnCancel;
+            document.getElementById('btn-copy').innerText = t.btnCopy;
+            document.getElementById('btn-do-import').innerText = t.btnDoImport;
+            document.getElementById('btn-close').innerText = t.btnClose;
+            renderTabs();
+        }
+
+        function toggleEditFields() {
+            const val = document.getElementById('edit-type').value;
+            document.getElementById('unit-fields').style.display = (val === 'unit') ? 'block' : 'none';
+            document.getElementById('cell-fields').style.display = (val === 'cell') ? 'block' : 'none';
+        }
+
+        function initializeBoard() {
+            BOARD_WIDTH = parseInt(document.getElementById('board-width').value) || 6;
+            BOARD_HEIGHT = parseInt(document.getElementById('board-height').value) || 8;
+            boardState = Array(BOARD_HEIGHT).fill(0).map(() => 
+                Array(BOARD_WIDTH).fill(0).map(() => ({ cellColor: '#5d748f', cellNote: '' }))
+            );
+            unitList = {}; nextUnitId = 1; snapshots = [];
+            takeSnapshot(langPack[currentLang].initStep);
+        }
+
+        function renderBoard() {
+            const container = document.getElementById('chessboard-container');
+            container.innerHTML = '';
+            container.style.gridTemplateColumns = `repeat(${BOARD_WIDTH}, 60px)`;
+            
+            for (let r = 0; r < BOARD_HEIGHT; r++) {
+                for (let c = 0; c < BOARD_WIDTH; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    const s = boardState[r][c];
+                    cell.style.backgroundColor = s.cellColor;
+                    
+                    if(s.cellNote) {
+                        const note = document.createElement('div');
+                        note.className = 'cell-note-label';
+                        note.innerText = s.cellNote;
+                        cell.appendChild(note);
+                    }
+
+                    cell.onclick = () => openEditModal(r, c);
+                    
+                    const uid = Object.keys(unitList).find(id => unitList[id].r === r && unitList[id].c === c);
+                    if(uid) {
+                        const u = unitList[uid];
+                        const unitEl = document.createElement('div');
+                        unitEl.className = `unit ${u.faction}`;
+                        unitEl.title = u.desc || ""; 
+                        unitEl.textContent = u.note || uid;
+                        if(unitEl.textContent.length > 3) unitEl.classList.add('small-text');
+                        
+                        if(u.facing) {
+                            const arrow = document.createElement('div');
+                            arrow.className = `unit-arrow facing-${u.facing}`;
+                            unitEl.appendChild(arrow);
+                        }
+                        cell.appendChild(unitEl);
+                    }
+                    container.appendChild(cell);
+                }
+            }
+        }
+
+        function openEditModal(r, c) {
+            editR = r; editC = c;
+            const uid = Object.keys(unitList).find(id => unitList[id].r === r && unitList[id].c === c);
+            const typeSel = document.getElementById('edit-type');
+
+            if(uid) {
+                typeSel.value = 'unit';
+                const u = unitList[uid];
+                document.getElementById('edit-faction').value = u.faction;
+                document.getElementById('edit-facing').value = u.facing || "";
+                document.getElementById('edit-unit-note').value = u.note || "";
+                document.getElementById('edit-unit-desc').value = u.desc || "";
+            } else {
+                typeSel.value = 'cell';
+                const s = boardState[r][c];
+                document.getElementById('edit-cell-color').value = s.cellColor || "#5d748f";
+                document.getElementById('edit-cell-note').value = s.cellNote || "";
+                document.getElementById('edit-unit-note').value = "";
+                document.getElementById('edit-unit-desc').value = "";
+            }
+            toggleEditFields();
+            document.getElementById('edit-modal').style.display = 'block';
+        }
+
+        function applyEdit() {
+            const type = document.getElementById('edit-type').value;
+            const uid = Object.keys(unitList).find(id => unitList[id].r === editR && unitList[id].c === editC);
+
+            if(type === 'clear') {
+                if(uid) delete unitList[uid];
+                boardState[editR][editC] = { cellColor: '#5d748f', cellNote: '' };
+            } else if(type === 'unit') {
+                const uData = {
+                    faction: document.getElementById('edit-faction').value,
+                    facing: document.getElementById('edit-facing').value,
+                    note: document.getElementById('edit-unit-note').value,
+                    desc: document.getElementById('edit-unit-desc').value,
+                    r: editR, c: editC
+                };
+                if(uid) unitList[uid] = uData;
+                else unitList[nextUnitId++] = uData;
+            } else if(type === 'cell') {
+                if(uid) delete unitList[uid];
+                boardState[editR][editC] = {
+                    cellColor: document.getElementById('edit-cell-color').value,
+                    cellNote: document.getElementById('edit-cell-note').value
+                };
+            }
+            renderBoard();
+            closeModals();
+        }
+
+        function takeSnapshot(name) {
+            snapshots.push({
+                name: name || `Step ${snapshots.length + 1}`,
+                data: JSON.parse(JSON.stringify({ boardState, unitList, nextUnitId, w: BOARD_WIDTH, h: BOARD_HEIGHT }))
+            });
+            currentSnapshotIdx = snapshots.length - 1;
+            renderTabs();
+            renderBoard();
+        }
+
+        function loadSnapshot(idx) {
+            const s = snapshots[idx].data;
+            boardState = s.boardState; unitList = s.unitList;
+            nextUnitId = s.nextUnitId; BOARD_WIDTH = s.w; BOARD_HEIGHT = s.h;
+            currentSnapshotIdx = idx;
+            document.getElementById('board-width').value = BOARD_WIDTH;
+            document.getElementById('board-height').value = BOARD_HEIGHT;
+            renderBoard();
+            renderTabs();
+        }
+
+        function renderTabs() {
+            const container = document.getElementById('history-tabs-container');
+            container.innerHTML = '';
+            snapshots.forEach((s, idx) => {
+                const tab = document.createElement('div');
+                tab.className = `history-tab ${idx === currentSnapshotIdx ? 'active' : ''}`;
+                tab.innerText = (idx === 0) ? langPack[currentLang].initStep : s.name;
+                tab.onclick = () => loadSnapshot(idx);
+                container.appendChild(tab);
+            });
+        }
+
+        function openExportModal() {
+            try {
+                const payload = JSON.stringify({ v: "5.1", s: snapshots });
+                const compressed = pako.deflate(new TextEncoder().encode(payload));
+                const code = btoa(String.fromCharCode.apply(null, compressed));
+                document.getElementById('code-title').innerText = langPack[currentLang].exportTitle;
+                document.getElementById('code-area').value = code;
+                document.getElementById('export-actions').style.display = "block";
+                document.getElementById('import-actions').style.display = "none";
+                document.getElementById('code-modal').style.display = "block";
+            } catch(e) { console.error(e); }
+        }
+
+        function openImportModal() {
+            document.getElementById('code-title').innerText = langPack[currentLang].importTitle;
+            document.getElementById('code-area').value = "";
+            document.getElementById('export-actions').style.display = "none";
+            document.getElementById('import-actions').style.display = "block";
+            document.getElementById('code-modal').style.display = "block";
+        }
+
+        function processImport() {
+            const code = document.getElementById('code-area').value.trim();
+            if(!code) return;
+            try {
+                const binary = atob(code);
+                const charData = binary.split('').map(c => c.charCodeAt(0));
+                const decompressed = pako.inflate(new Uint8Array(charData));
+                const decoded = JSON.parse(new TextDecoder().decode(decompressed));
+                if(decoded.s) {
+                    snapshots = decoded.s;
+                    loadSnapshot(snapshots.length - 1);
+                    closeModals();
+                    alert(langPack[currentLang].msgImportSuccess);
+                }
+            } catch(e) { alert(langPack[currentLang].msgImportFail); }
+        }
+
+        function copyToClipboard() {
+            const area = document.getElementById('code-area');
+            area.select();
+            document.execCommand('copy');
+            alert(langPack[currentLang].msgCopy);
+        }
+
+        function closeModals() {
+            document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+        }
+
+        window.onload = () => {
+            initializeBoard();
+            updateUI();
+        };
+    </script>
+</body>
+</html>
