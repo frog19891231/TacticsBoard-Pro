@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TacticsBoard Pro v5.2</title>
+    <title>TacticsBoard Pro v5.4.1</title>
     <!-- 引入 pako 進行數據壓縮與解壓縮 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     
@@ -14,6 +14,7 @@
             --accent-color: #3498db;
             --highlight-color: #f1c40f;
             --text-color: #ecf0f1;
+            --danger-color: #e74c3c;
         }
 
         body { 
@@ -22,24 +23,23 @@
             background-color: var(--bg-color); 
             color: var(--text-color); 
             padding-bottom: 50px;
-            overflow-x: hidden;
-            /* 防止行動端長按彈出菜單影響拖曳 */
             -webkit-touch-callout: none;
             -webkit-user-select: none;
             user-select: none;
+            touch-action: manipulation;
         }
         #app-container { 
-            max-width: 1100px; 
-            margin: 30px auto; 
+            max-width: 1200px; 
+            margin: 20px auto; 
             background: var(--panel-bg); 
-            padding: 25px; 
+            padding: 20px; 
             border-radius: 12px; 
             box-shadow: 0 10px 20px rgba(0,0,0,0.5); 
         }
         h1, h3 { color: var(--highlight-color); text-shadow: 1px 1px 2px #000; margin-top: 0;}
         header { 
             text-align: center; 
-            margin-bottom: 20px; 
+            margin: 20px 0; 
             display: flex;
             justify-content: center;
             align-items: center;
@@ -57,7 +57,7 @@
             display: flex;
             align-items: center;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 15px;
         }
         
         button {
@@ -76,53 +76,75 @@
         button:hover:not(:disabled) { background-color: #2980b9; transform: translateY(-1px); }
         button.success { background-color: #27ae60; }
         button.secondary { background-color: #95a5a6; }
-        button.lang-btn { background-color: #8e44ad; }
 
-        label { margin-right: 5px; font-weight: bold; }
+        label { font-weight: bold; display: inline-flex; align-items: center; gap: 5px; }
         input[type="number"], input[type="text"], select, textarea { 
             padding: 8px; 
             border-radius: 4px; 
             border: 1px solid #5d748f; 
             background: #4a627a; 
             color: white;
-            box-sizing: border-box;
         }
-        textarea { resize: vertical; min-height: 80px; font-family: inherit; }
         
+        input[type="range"] {
+            cursor: pointer;
+            accent-color: var(--highlight-color);
+        }
+
         #history-tabs-container {
             margin-top: 15px;
             display: flex;
             gap: 8px;
             overflow-x: auto;
-            padding-bottom: 5px;
+            padding-bottom: 10px;
             border-top: 1px dashed #5d748f;
-            padding-top: 10px;
+            padding-top: 15px;
         }
         .history-tab {
             background-color: #4a627a;
             border: 1px solid #5d748f;
             color: #bdc3c7;
             padding: 6px 12px;
-            border-radius: 15px;
+            border-radius: 20px;
             white-space: nowrap;
             cursor: pointer;
             font-size: 0.9em;
-            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.3s;
         }
         .history-tab.active {
             background-color: var(--highlight-color);
             color: #2c3e50;
-            border-color: var(--highlight-color);
             font-weight: bold;
         }
-
-        #board-display {
-            overflow-x: auto;
+        .btn-del-snapshot {
+            background: rgba(0,0,0,0.2);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
             display: flex;
-            padding: 20px;
+            align-items: center;
             justify-content: center;
-            position: relative;
+            font-size: 12px;
+            cursor: pointer;
         }
+        .btn-del-snapshot:hover {
+            background: var(--danger-color);
+        }
+
+        #board-scroll-wrapper {
+            width: 100%;
+            overflow: auto;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 40px 0;
+            text-align: center;
+            min-height: 400px;
+        }
+        
         #chessboard-container {
             display: inline-grid; 
             border: 4px solid #1abc9c;
@@ -130,9 +152,12 @@
             background-color: #34495e; 
             gap: 1px; 
             padding: 1px; 
-            user-select: none;
-            position: relative;
+            margin: 0 auto; 
+            vertical-align: top;
+            transform-origin: center top; 
+            transition: transform 0.1s ease-out;
         }
+
         .cell {
             width: 60px; height: 60px;
             display: flex; justify-content: center; align-items: center;
@@ -140,10 +165,11 @@
             background-color: #5d748f; 
         }
         .cell:hover { outline: 2px solid var(--highlight-color); z-index: 10; }
+        
         .cell-note-label {
             position: absolute; bottom: 2px; right: 2px;
             font-size: 9px; color: rgba(255,255,255,0.7); pointer-events: none;
-            background: rgba(0,0,0,0.3); padding: 0 2px; border-radius: 2px;
+            background: rgba(0,0,0,0.4); padding: 0 2px; border-radius: 2px;
         }
 
         .unit {
@@ -154,7 +180,7 @@
             box-shadow: 0 3px 6px rgba(0,0,0,0.6);
             text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
             z-index: 5;
-            pointer-events: none; /* 棋子本身不阻擋格子的點擊事件 */
+            pointer-events: none;
         }
         .unit.small-text { font-size: 10px; }
         .ally { background: linear-gradient(135deg, #2ecc71, #27ae60); }
@@ -173,218 +199,129 @@
         .facing-bottom { transform: translateX(-50%) rotate(180deg); }
         .facing-left { transform: translateX(-50%) rotate(270deg); }
 
-        /* 拖曳中的虛擬棋子樣式 */
         #ghost-unit {
             position: fixed;
             pointer-events: none;
             opacity: 0.7;
-            z-index: 999;
+            z-index: 9999;
             display: none;
             transform: translate(-50%, -50%);
         }
 
-        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); }
         .modal-content { 
-            background: var(--panel-bg); margin: 5% auto; padding: 25px; 
+            background: var(--panel-bg); margin: 5vh auto; padding: 25px; 
             width: 90%; max-width: 450px; border-radius: 10px; border: 2px solid var(--accent-color);
             max-height: 85vh; overflow-y: auto;
         }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
     <header>
-        <h1 id="ui-title">♟️ TacticsBoard Pro v5.2</h1>
-        <button class="lang-btn" onclick="toggleLanguage()">🌐 EN / 中文</button>
+        <h1 id="ui-title">♟️ TacticsBoard Pro v5.4.1</h1>
+        <button onclick="toggleLanguage()" style="background:#8e44ad">🌐 EN / 中文</button>
     </header>
 
     <div id="app-container">
         <section>
-            <h3 id="ui-io-title">🛠️ 傳輸與工具</h3>
+            <h3 id="ui-io-title">🛠️ 工具與分享</h3>
             <div class="controls-row">
-                <button onclick="openExportModal()" id="btn-export">📤 產生分享代碼</button>
-                <button onclick="openImportModal()" id="btn-import">📥 讀取分享代碼</button>
-                <div style="margin-left: auto;">
-                    <label>W:</label> <input type="number" id="board-width" value="6" style="width:50px">
-                    <label>H:</label> <input type="number" id="board-height" value="8" style="width:50px">
+                <button onclick="openExportModal()" id="btn-export">📤 產生代碼</button>
+                <button onclick="openImportModal()" id="btn-import">📥 匯入代碼</button>
+                
+                <div style="display: flex; align-items: center; gap: 10px; background: #2c3e50; padding: 5px 15px; border-radius: 20px;">
+                    <label id="ui-label-zoom">縮放:</label>
+                    <input type="range" id="zoom-slider" min="0.5" max="2" step="0.1" value="1" oninput="updateZoom()">
+                    <span id="zoom-val" style="min-width: 45px; font-weight: bold;">100%</span>
+                </div>
+
+                <div style="margin-left: auto; display: flex; gap: 8px;">
+                    <label>寬:</label> <input type="number" id="board-width" value="6" style="width:50px">
+                    <label>高:</label> <input type="number" id="board-height" value="8" style="width:50px">
                     <button class="secondary" onclick="initializeBoard()" id="btn-reset">🔄 重置</button>
                 </div>
             </div>
         </section>
 
         <section>
-            <h3 id="ui-history-title">🎞️ 攻略進程 (快照)</h3>
+            <h3 id="ui-history-title">🎞️ 快照紀錄</h3>
             <div class="controls-row">
-                <button class="success" onclick="takeSnapshot()" id="btn-snapshot">📸 建立當前快照</button>
+                <button class="success" onclick="takeSnapshot()" id="btn-snapshot">📸 建立快照</button>
             </div>
             <div id="history-tabs-container"></div>
         </section>
         
-        <section id="board-display">
+        <div id="board-scroll-wrapper">
             <div id="chessboard-container"></div>
-        </section>
+        </div>
     </div>
 
-    <!-- 虛擬棋子 (拖曳用) -->
     <div id="ghost-unit" class="unit"></div>
 
-    <!-- 編輯 Modal -->
     <div id="edit-modal" class="modal">
         <div class="modal-content">
-            <h4 style="margin-top:0" id="ui-edit-title">✏️ 編輯單元</h4>
-            <div id="edit-form">
-                <div class="form-group">
-                    <label id="ui-label-type">類型：</label>
-                    <select id="edit-type" style="width:100%;" onchange="toggleEditFields()">
-                        <option value="unit" id="opt-unit">棋子 (Unit)</option>
-                        <option value="cell" id="opt-cell">地形 (Cell)</option>
-                        <option value="clear" id="opt-clear">清除 (Clear)</option>
-                    </select>
-                </div>
-
-                <div id="unit-fields">
-                    <div class="form-group">
-                        <label id="ui-label-faction">陣營：</label>
-                        <select id="edit-faction" style="width:100%;">
-                            <option value="ally" id="opt-ally">我方</option>
-                            <option value="enemy" id="opt-enemy">敵方</option>
-                            <option value="neutral" id="opt-neutral">中立</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label id="ui-label-facing">朝向：</label>
-                        <select id="edit-facing" style="width:100%;">
-                            <option value="" id="opt-none">無</option>
-                            <option value="top" id="opt-top">上</option>
-                            <option value="bottom" id="opt-bottom">下</option>
-                            <option value="left" id="opt-left">左</option>
-                            <option value="right" id="opt-right">右</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label id="ui-label-note">棋子簡稱 (中央顯示)：</label>
-                        <input type="text" id="edit-unit-note" style="width:100%;" maxlength="5">
-                    </div>
-                    <div class="form-group">
-                        <label id="ui-label-desc">詳細備註 (戰術說明)：</label>
-                        <textarea id="edit-unit-desc" style="width:100%;"></textarea>
-                    </div>
-                </div>
-
-                <div id="cell-fields" style="display:none">
-                    <div class="form-group">
-                        <label id="ui-label-cell-color">背景顏色：</label>
-                        <input type="color" id="edit-cell-color" style="width:100%; height:40px;">
-                    </div>
-                    <div class="form-group">
-                        <label id="ui-label-cell-note">地形備註 (右下顯示)：</label>
-                        <input type="text" id="edit-cell-note" style="width:100%;" maxlength="10">
-                    </div>
-                </div>
-
-                <button onclick="applyEdit()" style="width:100%; margin-top:10px;" class="success" id="btn-confirm">確認</button>
-                <button onclick="closeModals()" style="width:100%; margin-top:5px;" class="secondary" id="btn-cancel">取消</button>
+            <h4 style="margin-top:0" id="ui-edit-title">✏️ 編輯</h4>
+            <div class="form-group">
+                <label id="ui-label-type">類型：</label>
+                <select id="edit-type" style="width:100%;" onchange="toggleEditFields()">
+                    <option value="unit">棋子 (Unit)</option>
+                    <option value="cell">地形 (Cell)</option>
+                    <option value="clear">清除 (Clear)</option>
+                </select>
+            </div>
+            <div id="unit-fields">
+                <div style="margin-top:15px"><label id="ui-label-faction">陣營：</label><select id="edit-faction" style="width:100%;"><option value="ally">我方</option><option value="enemy">敵方</option><option value="neutral">中立</option></select></div>
+                <div style="margin-top:15px"><label id="ui-label-facing">朝向：</label><select id="edit-facing" style="width:100%;"><option value="">無</option><option value="top">上</option><option value="bottom">下</option><option value="left">左</option><option value="right">右</option></select></div>
+                <div style="margin-top:15px"><label id="ui-label-note">簡稱：</label><input type="text" id="edit-unit-note" style="width:100%;" maxlength="5"></div>
+                <div style="margin-top:15px"><label id="ui-label-desc">說明：</label><textarea id="edit-unit-desc" style="width:100%; height:80px;"></textarea></div>
+            </div>
+            <div id="cell-fields" style="display:none">
+                <div style="margin-top:15px"><label id="ui-label-cell-color">顏色：</label><input type="color" id="edit-cell-color" style="width:100%; height:40px;"></div>
+                <div style="margin-top:15px"><label id="ui-label-cell-note">備註：</label><input type="text" id="edit-cell-note" style="width:100%;" maxlength="10"></div>
+            </div>
+            <div style="margin-top:20px; display:flex; gap:10px;">
+                <button onclick="applyEdit()" class="success" id="btn-confirm" style="flex:1">確認</button>
+                <button onclick="closeModals()" class="secondary" id="btn-cancel" style="flex:1">取消</button>
             </div>
         </div>
     </div>
 
     <div id="code-modal" class="modal">
         <div class="modal-content">
-            <h4 id="code-title">攻略代碼</h4>
+            <h4 id="code-title">代碼</h4>
             <textarea id="code-area" style="width: 100%; height: 200px; background: #1a252f; color: #2ecc71; font-family: monospace; font-size: 11px;"></textarea>
-            <div id="export-actions" style="margin-top:10px">
-                <button onclick="copyToClipboard()" class="success" id="btn-copy" style="width:100%">複製代碼</button>
-            </div>
-            <div id="import-actions" style="display:none; margin-top:10px">
-                <button onclick="processImport()" class="success" id="btn-do-import" style="width:100%">執行匯入</button>
-            </div>
-            <button onclick="closeModals()" class="secondary" style="margin-top:10px; width: 100%;" id="btn-close">關閉</button>
+            <div id="export-actions" style="margin-top:15px"><button onclick="copyToClipboard()" class="success" style="width:100%">複製代碼</button></div>
+            <div id="import-actions" style="display:none; margin-top:15px"><button onclick="processImport()" class="success" style="width:100%">執行匯入</button></div>
+            <button onclick="closeModals()" class="secondary" style="margin-top:10px; width: 100%;">關閉</button>
         </div>
     </div>
 
     <script>
         const langPack = {
             zh: {
-                pageTitle: "TacticsBoard Pro v5.2 - 戰棋攻略模擬器",
-                title: "♟️ TacticsBoard Pro v5.2",
-                ioTitle: "🛠️ 傳輸與工具",
-                historyTitle: "🎞️ 攻略進程 (快照)",
-                btnExport: "📤 產生分享代碼",
-                btnImport: "📥 讀取分享代碼",
+                title: "♟️ TacticsBoard Pro v5.4.1",
+                ioTitle: "🛠️ 工具與分享",
+                historyTitle: "🎞️ 快照紀錄",
+                btnExport: "📤 產生代碼",
+                btnImport: "📥 匯入代碼",
                 btnReset: "🔄 重置",
-                btnSnapshot: "📸 建立當前快照",
+                btnSnapshot: "📸 建立快照",
                 editTitle: "✏️ 編輯單元",
-                labelType: "類型：",
-                optUnit: "棋子 (Unit)",
-                optCell: "地形 (Cell)",
-                optClear: "清除 (Clear)",
-                labelFaction: "陣營：",
-                optAlly: "我方",
-                optEnemy: "敵方",
-                optNeutral: "中立",
-                labelFacing: "朝向：",
-                optNone: "無",
-                optTop: "上",
-                optBottom: "下",
-                optLeft: "左",
-                optRight: "右",
-                labelNote: "棋子簡稱 (中央顯示)：",
-                labelDesc: "詳細備註 (戰術說明)：",
-                labelCellColor: "背景顏色：",
-                labelCellNote: "地形備註 (右下顯示)：",
-                btnConfirm: "確認",
-                btnCancel: "取消",
-                exportTitle: "📤 您的攻略代碼",
-                importTitle: "📥 請貼入攻略代碼",
-                btnCopy: "複製代碼",
-                btnDoImport: "執行匯入",
-                btnClose: "關閉",
-                msgCopy: "代碼已複製！",
-                msgImportSuccess: "匯入成功！",
-                msgImportFail: "代碼解析失敗，請檢查格式！",
+                labelZoom: "縮放:",
                 initStep: "初始狀態"
             },
             en: {
-                pageTitle: "TacticsBoard Pro v5.2 - Tactics Simulator",
-                title: "♟️ TacticsBoard Pro v5.2",
-                ioTitle: "🛠️ Tools & Transfer",
-                historyTitle: "🎞️ Timeline (Snapshots)",
+                title: "♟️ TacticsBoard Pro v5.4.1",
+                ioTitle: "🛠️ Tools & Share",
+                historyTitle: "🎞️ Snapshots",
                 btnExport: "📤 Export Code",
                 btnImport: "📥 Import Code",
                 btnReset: "🔄 Reset",
-                btnSnapshot: "📸 Snapshot",
+                btnSnapshot: "📸 New Snapshot",
                 editTitle: "✏️ Edit Element",
-                labelType: "Type:",
-                optUnit: "Unit",
-                optCell: "Cell",
-                optClear: "Clear",
-                labelFaction: "Faction:",
-                optAlly: "Ally",
-                optEnemy: "Enemy",
-                optNeutral: "Neutral",
-                labelFacing: "Facing:",
-                optNone: "None",
-                optTop: "Top",
-                optBottom: "Bottom",
-                optLeft: "Left",
-                optRight: "Right",
-                labelNote: "Label (Short):",
-                labelDesc: "Tactical Notes (Long):",
-                labelCellColor: "Cell Color:",
-                labelCellNote: "Terrain Note:",
-                btnConfirm: "Confirm",
-                btnCancel: "Cancel",
-                exportTitle: "📤 Your Shared Code",
-                importTitle: "📥 Paste Shared Code",
-                btnCopy: "Copy Code",
-                btnDoImport: "Import Now",
-                btnClose: "Close",
-                msgCopy: "Copied!",
-                msgImportSuccess: "Import success!",
-                msgImportFail: "Invalid code format!",
-                initStep: "Initial State"
+                labelZoom: "Zoom:",
+                initStep: "Initial"
             }
         };
 
@@ -393,12 +330,11 @@
         let boardState = [], unitList = {}, nextUnitId = 1;
         let snapshots = [], currentSnapshotIdx = -1;
         let editR = -1, editC = -1;
+        let currentZoom = 1;
 
-        // 長按拖曳相關變數
-        let longPressTimer = null;
+        let pressTimer = null;
         let isDragging = false;
-        let dragSourceId = null;
-        let dragSourceCell = { r: -1, c: -1 };
+        let dragTargetId = null;
 
         function toggleLanguage() {
             currentLang = (currentLang === 'zh') ? 'en' : 'zh';
@@ -407,7 +343,6 @@
 
         function updateUI() {
             const t = langPack[currentLang];
-            document.title = t.pageTitle;
             document.getElementById('ui-title').innerText = t.title;
             document.getElementById('ui-io-title').innerText = t.ioTitle;
             document.getElementById('ui-history-title').innerText = t.historyTitle;
@@ -415,37 +350,15 @@
             document.getElementById('btn-import').innerText = t.btnImport;
             document.getElementById('btn-reset').innerText = t.btnReset;
             document.getElementById('btn-snapshot').innerText = t.btnSnapshot;
-            document.getElementById('ui-edit-title').innerText = t.editTitle;
-            document.getElementById('ui-label-type').innerText = t.labelType;
-            document.getElementById('opt-unit').innerText = t.optUnit;
-            document.getElementById('opt-cell').innerText = t.optCell;
-            document.getElementById('opt-clear').innerText = t.optClear;
-            document.getElementById('ui-label-faction').innerText = t.labelFaction;
-            document.getElementById('opt-ally').innerText = t.optAlly;
-            document.getElementById('opt-enemy').innerText = t.optEnemy;
-            document.getElementById('opt-neutral').innerText = t.optNeutral;
-            document.getElementById('ui-label-facing').innerText = t.labelFacing;
-            document.getElementById('opt-none').innerText = t.optNone;
-            document.getElementById('opt-top').innerText = t.optTop;
-            document.getElementById('opt-bottom').innerText = t.optBottom;
-            document.getElementById('opt-left').innerText = t.optLeft;
-            document.getElementById('opt-right').innerText = t.optRight;
-            document.getElementById('ui-label-note').innerText = t.labelNote;
-            document.getElementById('ui-label-desc').innerText = t.labelDesc;
-            document.getElementById('ui-label-cell-color').innerText = t.labelCellColor;
-            document.getElementById('ui-label-cell-note').innerText = t.labelCellNote;
-            document.getElementById('btn-confirm').innerText = t.btnConfirm;
-            document.getElementById('btn-cancel').innerText = t.btnCancel;
-            document.getElementById('btn-copy').innerText = t.btnCopy;
-            document.getElementById('btn-do-import').innerText = t.btnDoImport;
-            document.getElementById('btn-close').innerText = t.btnClose;
+            document.getElementById('ui-label-zoom').innerText = t.labelZoom;
             renderTabs();
         }
 
-        function toggleEditFields() {
-            const val = document.getElementById('edit-type').value;
-            document.getElementById('unit-fields').style.display = (val === 'unit') ? 'block' : 'none';
-            document.getElementById('cell-fields').style.display = (val === 'cell') ? 'block' : 'none';
+        function updateZoom() {
+            currentZoom = parseFloat(document.getElementById('zoom-slider').value);
+            document.getElementById('zoom-val').innerText = Math.round(currentZoom * 100) + "%";
+            const container = document.getElementById('chessboard-container');
+            container.style.transform = `scale(${currentZoom})`;
         }
 
         function initializeBoard() {
@@ -479,17 +392,16 @@
                         cell.appendChild(note);
                     }
 
-                    // 事件綁定
-                    cell.onmousedown = (e) => handleStart(e, r, c);
-                    cell.ontouchstart = (e) => handleStart(e, r, c);
+                    cell.onmousedown = (e) => startPress(e, r, c);
+                    cell.ontouchstart = (e) => startPress(e, r, c);
+                    
                     cell.onclick = (e) => {
                         if (isDragging) return;
                         openEditModal(r, c);
                     };
 
                     const uid = Object.keys(unitList).find(id => unitList[id].r === r && unitList[id].c === c);
-                    // 如果正在拖曳中，暫時不渲染原位的棋子
-                    if(uid && !(isDragging && dragSourceId === uid)) {
+                    if(uid && !(isDragging && dragTargetId === uid)) {
                         const u = unitList[uid];
                         const unitEl = document.createElement('div');
                         unitEl.className = `unit ${u.faction}`;
@@ -506,98 +418,94 @@
                     container.appendChild(cell);
                 }
             }
+            updateZoom();
         }
 
-        // --- 拖曳邏輯 ---
-
-        function handleStart(e, r, c) {
+        function startPress(e, r, c) {
             const uid = Object.keys(unitList).find(id => unitList[id].r === r && unitList[id].c === c);
             if (!uid) return;
 
-            longPressTimer = setTimeout(() => {
-                startDrag(uid, r, c, e);
-            }, 500);
+            pressTimer = setTimeout(() => {
+                startDragging(uid, e);
+            }, 450);
 
-            const clearTimer = () => clearTimeout(longPressTimer);
-            window.addEventListener('mouseup', clearTimer, { once: true });
-            window.addEventListener('touchend', clearTimer, { once: true });
-            window.addEventListener('mousemove', clearTimer, { once: true });
+            const cancel = () => {
+                clearTimeout(pressTimer);
+                window.removeEventListener('mouseup', cancel);
+                window.removeEventListener('touchend', cancel);
+                window.removeEventListener('mousemove', cancel);
+            };
+            window.addEventListener('mouseup', cancel);
+            window.addEventListener('touchend', cancel);
+            window.addEventListener('mousemove', cancel);
         }
 
-        function startDrag(uid, r, c, e) {
+        function startDragging(uid, e) {
             isDragging = true;
-            dragSourceId = uid;
-            dragSourceCell = { r, c };
+            dragTargetId = uid;
+            const u = unitList[uid];
             
             const ghost = document.getElementById('ghost-unit');
-            const u = unitList[uid];
             ghost.className = `unit ${u.faction}`;
             ghost.textContent = u.note || uid;
+            
+            ghost.style.width = (50 * currentZoom) + "px";
+            ghost.style.height = (50 * currentZoom) + "px";
+            ghost.style.fontSize = (14 * currentZoom) + "px";
             ghost.style.display = 'flex';
             
-            updateGhostPos(e);
-            renderBoard(); // 重新渲染棋盤，原位會暫時留空
+            moveGhost(e);
+            renderBoard();
 
-            window.addEventListener('mousemove', updateGhostPos);
-            window.addEventListener('touchmove', updateGhostPos, { passive: false });
-            window.addEventListener('mouseup', endDrag, { once: true });
-            window.addEventListener('touchend', endDrag, { once: true });
+            window.addEventListener('mousemove', moveGhost);
+            window.addEventListener('touchmove', moveGhost, { passive: false });
+            window.addEventListener('mouseup', endDragging, { once: true });
+            window.addEventListener('touchend', endDragging, { once: true });
         }
 
-        function updateGhostPos(e) {
+        function moveGhost(e) {
             if (!isDragging) return;
             if (e.cancelable) e.preventDefault();
-            
             const ghost = document.getElementById('ghost-unit');
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            ghost.style.left = clientX + 'px';
-            ghost.style.top = clientY + 'px';
+            const x = e.touches ? e.touches[0].clientX : e.clientX;
+            const y = e.touches ? e.touches[0].clientY : e.clientY;
+            ghost.style.left = x + 'px';
+            ghost.style.top = y + 'px';
         }
 
-        function endDrag(e) {
+        function endDragging(e) {
             if (!isDragging) return;
-            
             const ghost = document.getElementById('ghost-unit');
             ghost.style.display = 'none';
             
-            const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-            const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+            const x = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+            const y = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
             
-            // 找出滑鼠下的格子
-            const el = document.elementFromPoint(clientX, clientY);
-            const cell = el ? el.closest('.cell') : null;
+            const targetEl = document.elementFromPoint(x, y);
+            const cell = targetEl ? targetEl.closest('.cell') : null;
 
             if (cell) {
-                const tr = parseInt(cell.dataset.r);
-                const tc = parseInt(cell.dataset.c);
+                const nr = parseInt(cell.dataset.r);
+                const nc = parseInt(cell.dataset.c);
+                const collision = Object.keys(unitList).find(id => unitList[id].r === nr && unitList[id].c === nc && id !== dragTargetId);
                 
-                // 檢查目標位置是否已有棋子
-                const targetUid = Object.keys(unitList).find(id => unitList[id].r === tr && unitList[id].c === tc && id !== dragSourceId);
-                
-                if (!targetUid) {
-                    // 移動棋子
-                    unitList[dragSourceId].r = tr;
-                    unitList[dragSourceId].c = tc;
+                if (!collision) {
+                    unitList[dragTargetId].r = nr;
+                    unitList[dragTargetId].c = nc;
                 }
             }
 
             isDragging = false;
-            dragSourceId = null;
-            
-            window.removeEventListener('mousemove', updateGhostPos);
-            window.removeEventListener('touchmove', updateGhostPos);
+            dragTargetId = null;
+            window.removeEventListener('mousemove', moveGhost);
+            window.removeEventListener('touchmove', moveGhost);
             renderBoard();
         }
-
-        // --- 編輯 Modal 邏輯 ---
 
         function openEditModal(r, c) {
             editR = r; editC = c;
             const uid = Object.keys(unitList).find(id => unitList[id].r === r && unitList[id].c === c);
             const typeSel = document.getElementById('edit-type');
-
             if(uid) {
                 typeSel.value = 'unit';
                 const u = unitList[uid];
@@ -610,17 +518,20 @@
                 const s = boardState[r][c];
                 document.getElementById('edit-cell-color').value = s.cellColor || "#5d748f";
                 document.getElementById('edit-cell-note').value = s.cellNote || "";
-                document.getElementById('edit-unit-note').value = "";
-                document.getElementById('edit-unit-desc').value = "";
             }
             toggleEditFields();
             document.getElementById('edit-modal').style.display = 'block';
         }
 
+        function toggleEditFields() {
+            const val = document.getElementById('edit-type').value;
+            document.getElementById('unit-fields').style.display = (val === 'unit') ? 'block' : 'none';
+            document.getElementById('cell-fields').style.display = (val === 'cell') ? 'block' : 'none';
+        }
+
         function applyEdit() {
             const type = document.getElementById('edit-type').value;
             const uid = Object.keys(unitList).find(id => unitList[id].r === editR && unitList[id].c === editC);
-
             if(type === 'clear') {
                 if(uid) delete unitList[uid];
                 boardState[editR][editC] = { cellColor: '#5d748f', cellNote: '' };
@@ -655,10 +566,30 @@
             renderBoard();
         }
 
+        function deleteSnapshot(idx, e) {
+            if (e) e.stopPropagation();
+            if (idx === 0) return; // 初始快照不允許刪除
+            
+            snapshots.splice(idx, 1);
+            
+            if (currentSnapshotIdx === idx) {
+                // 如果刪除的是當前選中的，切換到前一個
+                currentSnapshotIdx = Math.max(0, idx - 1);
+            } else if (currentSnapshotIdx > idx) {
+                // 如果刪除的在當前選中的前面，索引要減一
+                currentSnapshotIdx--;
+            }
+            
+            loadSnapshot(currentSnapshotIdx);
+        }
+
         function loadSnapshot(idx) {
             const s = snapshots[idx].data;
-            boardState = s.boardState; unitList = s.unitList;
-            nextUnitId = s.nextUnitId; BOARD_WIDTH = s.w; BOARD_HEIGHT = s.h;
+            boardState = JSON.parse(JSON.stringify(s.boardState));
+            unitList = JSON.parse(JSON.stringify(s.unitList));
+            nextUnitId = s.nextUnitId; 
+            BOARD_WIDTH = s.w; 
+            BOARD_HEIGHT = s.h;
             currentSnapshotIdx = idx;
             document.getElementById('board-width').value = BOARD_WIDTH;
             document.getElementById('board-height').value = BOARD_HEIGHT;
@@ -672,27 +603,37 @@
             snapshots.forEach((s, idx) => {
                 const tab = document.createElement('div');
                 tab.className = `history-tab ${idx === currentSnapshotIdx ? 'active' : ''}`;
-                tab.innerText = (idx === 0) ? langPack[currentLang].initStep : s.name;
+                
+                const label = document.createElement('span');
+                label.innerText = (idx === 0) ? langPack[currentLang].initStep : s.name;
+                tab.appendChild(label);
+
+                if (idx !== 0) {
+                    const delBtn = document.createElement('div');
+                    delBtn.className = 'btn-del-snapshot';
+                    delBtn.innerText = '×';
+                    delBtn.onclick = (e) => deleteSnapshot(idx, e);
+                    tab.appendChild(delBtn);
+                }
+
                 tab.onclick = () => loadSnapshot(idx);
                 container.appendChild(tab);
             });
         }
 
+        function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+
         function openExportModal() {
-            try {
-                const payload = JSON.stringify({ v: "5.2", s: snapshots });
-                const compressed = pako.deflate(new TextEncoder().encode(payload));
-                const code = btoa(String.fromCharCode.apply(null, compressed));
-                document.getElementById('code-title').innerText = langPack[currentLang].exportTitle;
-                document.getElementById('code-area').value = code;
-                document.getElementById('export-actions').style.display = "block";
-                document.getElementById('import-actions').style.display = "none";
-                document.getElementById('code-modal').style.display = "block";
-            } catch(e) { console.error(e); }
+            const payload = JSON.stringify({ v: "5.4.1", s: snapshots });
+            const compressed = pako.deflate(new TextEncoder().encode(payload));
+            const code = btoa(String.fromCharCode.apply(null, compressed));
+            document.getElementById('code-area').value = code;
+            document.getElementById('export-actions').style.display = "block";
+            document.getElementById('import-actions').style.display = "none";
+            document.getElementById('code-modal').style.display = "block";
         }
 
         function openImportModal() {
-            document.getElementById('code-title').innerText = langPack[currentLang].importTitle;
             document.getElementById('code-area').value = "";
             document.getElementById('export-actions').style.display = "none";
             document.getElementById('import-actions').style.display = "block";
@@ -701,30 +642,19 @@
 
         function processImport() {
             const code = document.getElementById('code-area').value.trim();
-            if(!code) return;
             try {
                 const binary = atob(code);
                 const charData = binary.split('').map(c => c.charCodeAt(0));
                 const decompressed = pako.inflate(new Uint8Array(charData));
                 const decoded = JSON.parse(new TextDecoder().decode(decompressed));
-                if(decoded.s) {
-                    snapshots = decoded.s;
-                    loadSnapshot(snapshots.length - 1);
-                    closeModals();
-                    alert(langPack[currentLang].msgImportSuccess);
-                }
-            } catch(e) { alert(langPack[currentLang].msgImportFail); }
+                if(decoded.s) { snapshots = decoded.s; loadSnapshot(snapshots.length - 1); closeModals(); }
+            } catch(e) { alert("Invalid code."); }
         }
 
         function copyToClipboard() {
-            const area = document.getElementById('code-area');
-            area.select();
+            document.getElementById('code-area').select();
             document.execCommand('copy');
-            alert(langPack[currentLang].msgCopy);
-        }
-
-        function closeModals() {
-            document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+            alert("Copied!");
         }
 
         window.onload = () => {
