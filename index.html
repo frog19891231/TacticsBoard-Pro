@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TacticsBoard Pro v5.4.1</title>
+    <title>TacticsBoard Pro v5.8</title>
     <!-- 引入 pako 進行數據壓縮與解壓縮 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     
@@ -15,6 +15,8 @@
             --highlight-color: #f1c40f;
             --text-color: #ecf0f1;
             --danger-color: #e74c3c;
+            --success-color: #27ae60;
+            --tooltip-bg: rgba(0, 0, 0, 0.85);
         }
 
         body { 
@@ -74,8 +76,9 @@
             gap: 5px;
         }
         button:hover:not(:disabled) { background-color: #2980b9; transform: translateY(-1px); }
-        button.success { background-color: #27ae60; }
+        button.success { background-color: var(--success-color); }
         button.secondary { background-color: #95a5a6; }
+        button.danger { background-color: var(--danger-color); }
 
         label { font-weight: bold; display: inline-flex; align-items: center; gap: 5px; }
         input[type="number"], input[type="text"], select, textarea { 
@@ -111,29 +114,32 @@
             font-size: 0.9em;
             display: flex;
             align-items: center;
-            gap: 8px;
-            transition: background 0.3s;
+            gap: 6px;
+            transition: all 0.2s;
         }
+        .history-tab:hover { background-color: #5d748f; border-color: var(--highlight-color); }
         .history-tab.active {
             background-color: var(--highlight-color);
             color: #2c3e50;
             font-weight: bold;
         }
-        .btn-del-snapshot {
-            background: rgba(0,0,0,0.2);
+        
+        .tab-label { flex-grow: 1; }
+
+        .tab-icon-btn {
+            background: rgba(0,0,0,0.15);
             color: white;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
+            border-radius: 4px;
+            width: 20px;
+            height: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 11px;
             cursor: pointer;
+            transition: background 0.2s;
         }
-        .btn-del-snapshot:hover {
-            background: var(--danger-color);
-        }
+        .tab-icon-btn:hover { background: rgba(0,0,0,0.4); }
 
         #board-scroll-wrapper {
             width: 100%;
@@ -208,41 +214,101 @@
             transform: translate(-50%, -50%);
         }
 
+        /* 懸浮資訊方塊 */
+        #unit-tooltip {
+            position: fixed;
+            z-index: 10000;
+            background: var(--tooltip-bg);
+            color: white;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            pointer-events: none;
+            display: none;
+            max-width: 250px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            border: 1px solid var(--highlight-color);
+            line-height: 1.5;
+        }
+        .tooltip-header {
+            font-weight: bold;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            margin-bottom: 5px;
+            padding-bottom: 3px;
+            color: var(--highlight-color);
+            display: flex;
+            justify-content: space-between;
+        }
+        .tooltip-desc {
+            color: #ddd;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); }
         .modal-content { 
             background: var(--panel-bg); margin: 5vh auto; padding: 25px; 
             width: 90%; max-width: 450px; border-radius: 10px; border: 2px solid var(--accent-color);
             max-height: 85vh; overflow-y: auto;
         }
+        
+        .section-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .section-grid { grid-template-columns: 1fr; }
+        }
+
+        #toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: var(--highlight-color); color: #2c3e50;
+            padding: 10px 20px; border-radius: 30px; font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 2000;
+            display: none; animation: fadeInOut 2s forwards;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translate(-50%, 20px); }
+            15% { opacity: 1; transform: translate(-50%, 0); }
+            85% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, -20px); }
+        }
     </style>
 </head>
 <body>
 
     <header>
-        <h1 id="ui-title">♟️ TacticsBoard Pro v5.4.1</h1>
+        <h1 id="ui-title">♟️ TacticsBoard Pro v5.8</h1>
         <button onclick="toggleLanguage()" style="background:#8e44ad">🌐 EN / 中文</button>
     </header>
 
     <div id="app-container">
-        <section>
-            <h3 id="ui-io-title">🛠️ 工具與分享</h3>
-            <div class="controls-row">
-                <button onclick="openExportModal()" id="btn-export">📤 產生代碼</button>
-                <button onclick="openImportModal()" id="btn-import">📥 匯入代碼</button>
-                
-                <div style="display: flex; align-items: center; gap: 10px; background: #2c3e50; padding: 5px 15px; border-radius: 20px;">
-                    <label id="ui-label-zoom">縮放:</label>
-                    <input type="range" id="zoom-slider" min="0.5" max="2" step="0.1" value="1" oninput="updateZoom()">
-                    <span id="zoom-val" style="min-width: 45px; font-weight: bold;">100%</span>
+        <div class="section-grid">
+            <section>
+                <h3 id="ui-config-title">📐 棋盤與縮放</h3>
+                <div class="controls-row">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label>寬:</label> <input type="number" id="board-width" value="6" style="width:50px">
+                        <label>高:</label> <input type="number" id="board-height" value="8" style="width:50px">
+                        <button class="secondary" onclick="initializeBoard()" id="btn-reset">🔄 重置</button>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px; background: #2c3e50; padding: 5px 15px; border-radius: 20px;">
+                        <label id="ui-label-zoom">縮放:</label>
+                        <input type="range" id="zoom-slider" min="0.5" max="2" step="0.1" value="1" oninput="updateZoom()">
+                        <span id="zoom-val" style="min-width: 45px; font-weight: bold;">100%</span>
+                    </div>
                 </div>
+            </section>
 
-                <div style="margin-left: auto; display: flex; gap: 8px;">
-                    <label>寬:</label> <input type="number" id="board-width" value="6" style="width:50px">
-                    <label>高:</label> <input type="number" id="board-height" value="8" style="width:50px">
-                    <button class="secondary" onclick="initializeBoard()" id="btn-reset">🔄 重置</button>
+            <section>
+                <h3 id="ui-io-title">📤 分享與匯出</h3>
+                <div class="controls-row">
+                    <button onclick="openExportModal()" id="btn-export">📤 產生代碼 / 連結</button>
+                    <button onclick="openImportModal()" id="btn-import">📥 匯入代碼</button>
                 </div>
-            </div>
-        </section>
+            </section>
+        </div>
 
         <section>
             <h3 id="ui-history-title">🎞️ 快照紀錄</h3>
@@ -257,8 +323,15 @@
         </div>
     </div>
 
+    <!-- 輔助 UI 元素 -->
     <div id="ghost-unit" class="unit"></div>
+    <div id="unit-tooltip">
+        <div class="tooltip-header"><span id="tt-name"></span><span id="tt-faction" style="font-size:10px; opacity:0.8"></span></div>
+        <div class="tooltip-desc" id="tt-desc"></div>
+    </div>
+    <div id="toast">已複製到剪貼簿</div>
 
+    <!-- 編輯 Modal -->
     <div id="edit-modal" class="modal">
         <div class="modal-content">
             <h4 style="margin-top:0" id="ui-edit-title">✏️ 編輯</h4>
@@ -287,41 +360,71 @@
         </div>
     </div>
 
+    <!-- 代碼 Modal -->
     <div id="code-modal" class="modal">
         <div class="modal-content">
-            <h4 id="code-title">代碼</h4>
-            <textarea id="code-area" style="width: 100%; height: 200px; background: #1a252f; color: #2ecc71; font-family: monospace; font-size: 11px;"></textarea>
-            <div id="export-actions" style="margin-top:15px"><button onclick="copyToClipboard()" class="success" style="width:100%">複製代碼</button></div>
-            <div id="import-actions" style="display:none; margin-top:15px"><button onclick="processImport()" class="success" style="width:100%">執行匯入</button></div>
+            <h4 id="code-title">數據分享</h4>
+            <textarea id="code-area" style="width: 100%; height: 150px; background: #1a252f; color: #2ecc71; font-family: monospace; font-size: 11px;"></textarea>
+            
+            <div id="export-actions" style="margin-top:15px; display:flex; flex-direction:column; gap:10px;">
+                <button onclick="copyToClipboard('code')" class="success">📋 複製代碼</button>
+                <button onclick="copyToClipboard('link')" style="background:#e67e22">🔗 複製分享連結</button>
+            </div>
+            
+            <div id="import-actions" style="display:none; margin-top:15px">
+                <button onclick="processImport()" class="success" style="width:100%">🚀 執行匯入</button>
+            </div>
             <button onclick="closeModals()" class="secondary" style="margin-top:10px; width: 100%;">關閉</button>
+        </div>
+    </div>
+
+    <!-- 重新命名 Modal -->
+    <div id="rename-modal" class="modal">
+        <div class="modal-content">
+            <h4 id="ui-rename-title">🏷️ 重新命名快照</h4>
+            <input type="text" id="rename-input" style="width:100%; margin-top:10px;">
+            <div style="margin-top:20px; display:flex; gap:10px;">
+                <button onclick="applyRename()" class="success" style="flex:1">儲存</button>
+                <button onclick="closeModals()" class="secondary" style="flex:1">取消</button>
+            </div>
         </div>
     </div>
 
     <script>
         const langPack = {
             zh: {
-                title: "♟️ TacticsBoard Pro v5.4.1",
-                ioTitle: "🛠️ 工具與分享",
+                title: "♟️ TacticsBoard Pro v5.8",
+                configTitle: "📐 棋盤與縮放",
+                ioTitle: "📤 分享與匯出",
                 historyTitle: "🎞️ 快照紀錄",
-                btnExport: "📤 產生代碼",
+                btnExport: "📤 產生代碼 / 連結",
                 btnImport: "📥 匯入代碼",
                 btnReset: "🔄 重置",
                 btnSnapshot: "📸 建立快照",
                 editTitle: "✏️ 編輯單元",
                 labelZoom: "縮放:",
-                initStep: "初始狀態"
+                initStep: "初始狀態",
+                renameTitle: "🏷️ 重新命名快照",
+                toastCopy: "已複製到剪貼簿",
+                importSuccess: "數據匯入成功！",
+                factionNames: { ally: "我方", enemy: "敵方", neutral: "中立" }
             },
             en: {
-                title: "♟️ TacticsBoard Pro v5.4.1",
-                ioTitle: "🛠️ Tools & Share",
+                title: "♟️ TacticsBoard Pro v5.8",
+                configTitle: "📐 Board & Zoom",
+                ioTitle: "📤 Share & Export",
                 historyTitle: "🎞️ Snapshots",
-                btnExport: "📤 Export Code",
+                btnExport: "📤 Get Code / Link",
                 btnImport: "📥 Import Code",
                 btnReset: "🔄 Reset",
                 btnSnapshot: "📸 New Snapshot",
                 editTitle: "✏️ Edit Element",
                 labelZoom: "Zoom:",
-                initStep: "Initial"
+                initStep: "Initial",
+                renameTitle: "🏷️ Rename Snapshot",
+                toastCopy: "Copied to clipboard",
+                importSuccess: "Import successful!",
+                factionNames: { ally: "Ally", enemy: "Enemy", neutral: "Neutral" }
             }
         };
 
@@ -331,10 +434,22 @@
         let snapshots = [], currentSnapshotIdx = -1;
         let editR = -1, editC = -1;
         let currentZoom = 1;
+        let renamingIdx = -1;
 
         let pressTimer = null;
         let isDragging = false;
         let dragTargetId = null;
+
+        // 懸浮提示相關
+        let hoverTimer = null;
+        let activeTooltipUnit = null;
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg || langPack[currentLang].toastCopy;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 2000);
+        }
 
         function toggleLanguage() {
             currentLang = (currentLang === 'zh') ? 'en' : 'zh';
@@ -344,6 +459,7 @@
         function updateUI() {
             const t = langPack[currentLang];
             document.getElementById('ui-title').innerText = t.title;
+            document.getElementById('ui-config-title').innerText = t.configTitle;
             document.getElementById('ui-io-title').innerText = t.ioTitle;
             document.getElementById('ui-history-title').innerText = t.historyTitle;
             document.getElementById('btn-export').innerText = t.btnExport;
@@ -351,6 +467,7 @@
             document.getElementById('btn-reset').innerText = t.btnReset;
             document.getElementById('btn-snapshot').innerText = t.btnSnapshot;
             document.getElementById('ui-label-zoom').innerText = t.labelZoom;
+            document.getElementById('ui-rename-title').innerText = t.renameTitle;
             renderTabs();
         }
 
@@ -392,8 +509,12 @@
                         cell.appendChild(note);
                     }
 
+                    // 事件綁定
                     cell.onmousedown = (e) => startPress(e, r, c);
                     cell.ontouchstart = (e) => startPress(e, r, c);
+                    cell.onmouseenter = (e) => startHover(e, r, c);
+                    cell.onmouseleave = clearHover;
+                    cell.onmousemove = updateTooltipPos;
                     
                     cell.onclick = (e) => {
                         if (isDragging) return;
@@ -421,42 +542,72 @@
             updateZoom();
         }
 
+        // 懸浮資訊邏輯
+        function startHover(e, r, c) {
+            const uid = Object.keys(unitList).find(id => unitList[id].r === r && unitList[id].c === c);
+            if (!uid || isDragging) return;
+            
+            hoverTimer = setTimeout(() => {
+                showTooltip(uid, e);
+            }, 500); // 500ms 觸發
+        }
+
+        function clearHover() {
+            clearTimeout(hoverTimer);
+            hideTooltip();
+        }
+
+        function showTooltip(uid, e) {
+            const u = unitList[uid];
+            if (!u.desc && !u.note) return; // 沒有內容則不顯示
+
+            const tooltip = document.getElementById('unit-tooltip');
+            document.getElementById('tt-name').innerText = u.note || `Unit #${uid}`;
+            document.getElementById('tt-faction').innerText = langPack[currentLang].factionNames[u.faction];
+            document.getElementById('tt-desc').innerText = u.desc || "";
+            
+            tooltip.style.display = 'block';
+            updateTooltipPos(e);
+        }
+
+        function updateTooltipPos(e) {
+            const tooltip = document.getElementById('unit-tooltip');
+            if (tooltip.style.display === 'block') {
+                const x = e.clientX + 15;
+                const y = e.clientY + 15;
+                tooltip.style.left = x + 'px';
+                tooltip.style.top = y + 'px';
+            }
+        }
+
+        function hideTooltip() {
+            document.getElementById('unit-tooltip').style.display = 'none';
+        }
+
+        // 拖拽邏輯
         function startPress(e, r, c) {
             const uid = Object.keys(unitList).find(id => unitList[id].r === r && unitList[id].c === c);
             if (!uid) return;
-
-            pressTimer = setTimeout(() => {
-                startDragging(uid, e);
-            }, 450);
-
-            const cancel = () => {
-                clearTimeout(pressTimer);
-                window.removeEventListener('mouseup', cancel);
-                window.removeEventListener('touchend', cancel);
-                window.removeEventListener('mousemove', cancel);
-            };
-            window.addEventListener('mouseup', cancel);
-            window.addEventListener('touchend', cancel);
-            window.addEventListener('mousemove', cancel);
+            pressTimer = setTimeout(() => { startDragging(uid, e); }, 450);
+            const cancel = () => { clearTimeout(pressTimer); };
+            window.addEventListener('mouseup', cancel, {once:true});
+            window.addEventListener('touchend', cancel, {once:true});
         }
 
         function startDragging(uid, e) {
+            hideTooltip(); // 拖拽時隱藏提示
             isDragging = true;
             dragTargetId = uid;
             const u = unitList[uid];
-            
             const ghost = document.getElementById('ghost-unit');
             ghost.className = `unit ${u.faction}`;
             ghost.textContent = u.note || uid;
-            
             ghost.style.width = (50 * currentZoom) + "px";
             ghost.style.height = (50 * currentZoom) + "px";
             ghost.style.fontSize = (14 * currentZoom) + "px";
             ghost.style.display = 'flex';
-            
             moveGhost(e);
             renderBoard();
-
             window.addEventListener('mousemove', moveGhost);
             window.addEventListener('touchmove', moveGhost, { passive: false });
             window.addEventListener('mouseup', endDragging, { once: true });
@@ -477,32 +628,26 @@
             if (!isDragging) return;
             const ghost = document.getElementById('ghost-unit');
             ghost.style.display = 'none';
-            
             const x = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
             const y = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
-            
             const targetEl = document.elementFromPoint(x, y);
             const cell = targetEl ? targetEl.closest('.cell') : null;
-
             if (cell) {
                 const nr = parseInt(cell.dataset.r);
                 const nc = parseInt(cell.dataset.c);
-                const collision = Object.keys(unitList).find(id => unitList[id].r === nr && unitList[id].c === nc && id !== dragTargetId);
-                
-                if (!collision) {
+                if (!Object.keys(unitList).find(id => unitList[id].r === nr && unitList[id].c === nc && id !== dragTargetId)) {
                     unitList[dragTargetId].r = nr;
                     unitList[dragTargetId].c = nc;
                 }
             }
-
-            isDragging = false;
-            dragTargetId = null;
+            isDragging = false; dragTargetId = null;
             window.removeEventListener('mousemove', moveGhost);
             window.removeEventListener('touchmove', moveGhost);
             renderBoard();
         }
 
         function openEditModal(r, c) {
+            hideTooltip();
             editR = r; editC = c;
             const uid = Object.keys(unitList).find(id => unitList[id].r === r && unitList[id].c === c);
             const typeSel = document.getElementById('edit-type');
@@ -536,24 +681,13 @@
                 if(uid) delete unitList[uid];
                 boardState[editR][editC] = { cellColor: '#5d748f', cellNote: '' };
             } else if(type === 'unit') {
-                const uData = {
-                    faction: document.getElementById('edit-faction').value,
-                    facing: document.getElementById('edit-facing').value,
-                    note: document.getElementById('edit-unit-note').value,
-                    desc: document.getElementById('edit-unit-desc').value,
-                    r: editR, c: editC
-                };
-                if(uid) unitList[uid] = uData;
-                else unitList[nextUnitId++] = uData;
+                const uData = { faction: document.getElementById('edit-faction').value, facing: document.getElementById('edit-facing').value, note: document.getElementById('edit-unit-note').value, desc: document.getElementById('edit-unit-desc').value, r: editR, c: editC };
+                if(uid) unitList[uid] = uData; else unitList[nextUnitId++] = uData;
             } else if(type === 'cell') {
                 if(uid) delete unitList[uid];
-                boardState[editR][editC] = {
-                    cellColor: document.getElementById('edit-cell-color').value,
-                    cellNote: document.getElementById('edit-cell-note').value
-                };
+                boardState[editR][editC] = { cellColor: document.getElementById('edit-cell-color').value, cellNote: document.getElementById('edit-cell-note').value };
             }
-            renderBoard();
-            closeModals();
+            renderBoard(); closeModals();
         }
 
         function takeSnapshot(name) {
@@ -562,24 +696,29 @@
                 data: JSON.parse(JSON.stringify({ boardState, unitList, nextUnitId, w: BOARD_WIDTH, h: BOARD_HEIGHT }))
             });
             currentSnapshotIdx = snapshots.length - 1;
-            renderTabs();
-            renderBoard();
+            renderTabs(); renderBoard();
+        }
+
+        function openRenameModal(idx, e) {
+            if (e) e.stopPropagation();
+            renamingIdx = idx;
+            document.getElementById('rename-input').value = snapshots[idx].name;
+            document.getElementById('rename-modal').style.display = 'block';
+            setTimeout(() => document.getElementById('rename-input').focus(), 100);
+        }
+
+        function applyRename() {
+            const newName = document.getElementById('rename-input').value.trim();
+            if (newName && renamingIdx !== -1) { snapshots[renamingIdx].name = newName; renderTabs(); }
+            closeModals();
         }
 
         function deleteSnapshot(idx, e) {
             if (e) e.stopPropagation();
-            if (idx === 0) return; // 初始快照不允許刪除
-            
+            if (idx === 0) return; 
             snapshots.splice(idx, 1);
-            
-            if (currentSnapshotIdx === idx) {
-                // 如果刪除的是當前選中的，切換到前一個
-                currentSnapshotIdx = Math.max(0, idx - 1);
-            } else if (currentSnapshotIdx > idx) {
-                // 如果刪除的在當前選中的前面，索引要減一
-                currentSnapshotIdx--;
-            }
-            
+            if (currentSnapshotIdx === idx) currentSnapshotIdx = Math.max(0, idx - 1);
+            else if (currentSnapshotIdx > idx) currentSnapshotIdx--;
             loadSnapshot(currentSnapshotIdx);
         }
 
@@ -587,14 +726,11 @@
             const s = snapshots[idx].data;
             boardState = JSON.parse(JSON.stringify(s.boardState));
             unitList = JSON.parse(JSON.stringify(s.unitList));
-            nextUnitId = s.nextUnitId; 
-            BOARD_WIDTH = s.w; 
-            BOARD_HEIGHT = s.h;
+            nextUnitId = s.nextUnitId; BOARD_WIDTH = s.w; BOARD_HEIGHT = s.h;
             currentSnapshotIdx = idx;
             document.getElementById('board-width').value = BOARD_WIDTH;
             document.getElementById('board-height').value = BOARD_HEIGHT;
-            renderBoard();
-            renderTabs();
+            renderBoard(); renderTabs();
         }
 
         function renderTabs() {
@@ -605,30 +741,38 @@
                 tab.className = `history-tab ${idx === currentSnapshotIdx ? 'active' : ''}`;
                 
                 const label = document.createElement('span');
-                label.innerText = (idx === 0) ? langPack[currentLang].initStep : s.name;
+                label.className = 'tab-label'; label.innerText = s.name;
                 tab.appendChild(label);
+
+                const renameBtn = document.createElement('div');
+                renameBtn.className = 'tab-icon-btn'; renameBtn.innerHTML = '✎';
+                renameBtn.onclick = (e) => openRenameModal(idx, e);
+                tab.appendChild(renameBtn);
 
                 if (idx !== 0) {
                     const delBtn = document.createElement('div');
-                    delBtn.className = 'btn-del-snapshot';
-                    delBtn.innerText = '×';
+                    delBtn.className = 'tab-icon-btn'; delBtn.innerText = '×';
                     delBtn.onclick = (e) => deleteSnapshot(idx, e);
                     tab.appendChild(delBtn);
                 }
 
-                tab.onclick = () => loadSnapshot(idx);
+                tab.onclick = (e) => { if (!e.target.classList.contains('tab-icon-btn')) loadSnapshot(idx); };
                 container.appendChild(tab);
             });
         }
 
         function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
 
-        function openExportModal() {
-            const payload = JSON.stringify({ v: "5.4.1", s: snapshots });
+        function generateDataCode() {
+            const payload = JSON.stringify({ v: "5.8", s: snapshots });
             const compressed = pako.deflate(new TextEncoder().encode(payload));
-            const code = btoa(String.fromCharCode.apply(null, compressed));
+            return btoa(String.fromCharCode.apply(null, compressed));
+        }
+
+        function openExportModal() {
+            const code = generateDataCode();
             document.getElementById('code-area').value = code;
-            document.getElementById('export-actions').style.display = "block";
+            document.getElementById('export-actions').style.display = "flex";
             document.getElementById('import-actions').style.display = "none";
             document.getElementById('code-modal').style.display = "block";
         }
@@ -640,26 +784,55 @@
             document.getElementById('code-modal').style.display = "block";
         }
 
-        function processImport() {
-            const code = document.getElementById('code-area').value.trim();
+        function processImport(externalCode) {
+            const code = externalCode || document.getElementById('code-area').value.trim();
+            if(!code) return;
             try {
                 const binary = atob(code);
                 const charData = binary.split('').map(c => c.charCodeAt(0));
                 const decompressed = pako.inflate(new Uint8Array(charData));
                 const decoded = JSON.parse(new TextDecoder().decode(decompressed));
-                if(decoded.s) { snapshots = decoded.s; loadSnapshot(snapshots.length - 1); closeModals(); }
-            } catch(e) { alert("Invalid code."); }
+                if(decoded.s) { 
+                    snapshots = decoded.s; 
+                    loadSnapshot(snapshots.length - 1); 
+                    closeModals();
+                    if(externalCode) showToast(langPack[currentLang].importSuccess);
+                }
+            } catch(e) { if(!externalCode) alert("Invalid code."); }
         }
 
-        function copyToClipboard() {
-            document.getElementById('code-area').select();
+        function copyToClipboard(mode) {
+            const code = generateDataCode();
+            let textToCopy = code;
+            
+            if (mode === 'link') {
+                const url = new URL(window.location.href);
+                url.searchParams.set('data', code);
+                textToCopy = url.toString();
+            }
+
+            const area = document.getElementById('code-area');
+            const originalVal = area.value;
+            area.value = textToCopy;
+            area.select();
             document.execCommand('copy');
-            alert("Copied!");
+            area.value = originalVal;
+            showToast();
+        }
+
+        function checkUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            const data = params.get('data');
+            if (data) {
+                processImport(data);
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
         }
 
         window.onload = () => {
             initializeBoard();
             updateUI();
+            checkUrlParams();
         };
     </script>
 </body>
