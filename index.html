@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TacticsBoard Pro v5.8</title>
-    <!-- 引入 pako 進行數據壓縮與解壓縮 -->
+    <title>TacticsBoard Pro v5.9 - Full Integration</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
     
     <style>
@@ -20,283 +19,86 @@
         }
 
         body { 
-            font-family: 'Segoe UI', 'Microsoft JhengHei', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; 
-            background-color: var(--bg-color); 
-            color: var(--text-color); 
-            padding-bottom: 50px;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
-            touch-action: manipulation;
-        }
-        #app-container { 
-            max-width: 1200px; 
-            margin: 20px auto; 
-            background: var(--panel-bg); 
-            padding: 20px; 
-            border-radius: 12px; 
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5); 
-        }
-        h1, h3 { color: var(--highlight-color); text-shadow: 1px 1px 2px #000; margin-top: 0;}
-        header { 
-            text-align: center; 
-            margin: 20px 0; 
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
+            font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; 
+            margin: 0; background-color: var(--bg-color); color: var(--text-color); 
+            padding-bottom: 50px; -webkit-touch-callout: none; -webkit-user-select: none;
+            user-select: none; touch-action: manipulation;
         }
 
-        section { 
-            margin-bottom: 20px; 
-            padding: 15px; 
-            background-color: var(--bg-color); 
-            border: 1px solid var(--accent-color); 
-            border-radius: 6px; 
-        }
-        .controls-row {
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
+        #app-container { max-width: 1200px; margin: 20px auto; background: var(--panel-bg); padding: 20px; border-radius: 12px; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        h1, h3 { color: var(--highlight-color); text-shadow: 1px 1px 2px #000; margin-top: 0;}
         
-        button {
-            background-color: var(--accent-color);
-            color: white;
-            padding: 8px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-weight: bold;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
+        header { text-align: center; margin: 20px 0; display: flex; justify-content: center; align-items: center; gap: 20px; }
+
+        section { margin-bottom: 20px; padding: 15px; background-color: var(--bg-color); border: 1px solid var(--accent-color); border-radius: 6px; }
+        .controls-row { display: flex; align-items: center; flex-wrap: wrap; gap: 15px; }
+        
+        button { background-color: var(--accent-color); color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; transition: all 0.2s; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; }
         button:hover:not(:disabled) { background-color: #2980b9; transform: translateY(-1px); }
         button.success { background-color: var(--success-color); }
         button.secondary { background-color: #95a5a6; }
         button.danger { background-color: var(--danger-color); }
 
-        label { font-weight: bold; display: inline-flex; align-items: center; gap: 5px; }
-        input[type="number"], input[type="text"], select, textarea { 
-            padding: 8px; 
-            border-radius: 4px; 
-            border: 1px solid #5d748f; 
-            background: #4a627a; 
-            color: white;
-        }
+        label { font-weight: bold; }
+        input[type="number"], input[type="text"], select, textarea { padding: 8px; border-radius: 4px; border: 1px solid #5d748f; background: #4a627a; color: white; }
         
-        input[type="range"] {
-            cursor: pointer;
-            accent-color: var(--highlight-color);
-        }
+        /* --- 棋盤滾動與縮放修復樣式 --- */
+        #board-scroll-wrapper { width: 100%; height: 650px; overflow: auto; background: rgba(0,0,0,0.3); border-radius: 8px; position: relative; }
+        #board-sizer { transform-origin: 0 0; display: inline-block; }
+        #board-scaler { transform-origin: 0 0; display: inline-block; padding: 60px; }
+        #chessboard-container { display: inline-grid; border: 4px solid #1abc9c; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7); background-color: #34495e; gap: 1px; padding: 1px; }
 
-        #history-tabs-container {
-            margin-top: 15px;
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            padding-bottom: 10px;
-            border-top: 1px dashed #5d748f;
-            padding-top: 15px;
-        }
-        .history-tab {
-            background-color: #4a627a;
-            border: 1px solid #5d748f;
-            color: #bdc3c7;
-            padding: 6px 12px;
-            border-radius: 20px;
-            white-space: nowrap;
-            cursor: pointer;
-            font-size: 0.9em;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
-        }
-        .history-tab:hover { background-color: #5d748f; border-color: var(--highlight-color); }
-        .history-tab.active {
-            background-color: var(--highlight-color);
-            color: #2c3e50;
-            font-weight: bold;
-        }
-        
-        .tab-label { flex-grow: 1; }
-
-        .tab-icon-btn {
-            background: rgba(0,0,0,0.15);
-            color: white;
-            border-radius: 4px;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 11px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .tab-icon-btn:hover { background: rgba(0,0,0,0.4); }
-
-        #board-scroll-wrapper {
-            width: 100%;
-            overflow: auto;
-            background: rgba(0,0,0,0.2);
-            border-radius: 8px;
-            padding: 40px 0;
-            text-align: center;
-            min-height: 400px;
-        }
-        
-        #chessboard-container {
-            display: inline-grid; 
-            border: 4px solid #1abc9c;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7);
-            background-color: #34495e; 
-            gap: 1px; 
-            padding: 1px; 
-            margin: 0 auto; 
-            vertical-align: top;
-            transform-origin: center top; 
-            transition: transform 0.1s ease-out;
-        }
-
-        .cell {
-            width: 60px; height: 60px;
-            display: flex; justify-content: center; align-items: center;
-            cursor: pointer; position: relative;
-            background-color: #5d748f; 
-        }
+        .cell { width: 60px; height: 60px; display: flex; justify-content: center; align-items: center; cursor: pointer; position: relative; background-color: #5d748f; }
         .cell:hover { outline: 2px solid var(--highlight-color); z-index: 10; }
         
-        .cell-note-label {
-            position: absolute; bottom: 2px; right: 2px;
-            font-size: 9px; color: rgba(255,255,255,0.7); pointer-events: none;
-            background: rgba(0,0,0,0.4); padding: 0 2px; border-radius: 2px;
-        }
+        /* 移動順序標籤 (新功能) */
+        .move-order-label { position: absolute; top: 2px; left: 4px; font-size: 11px; font-weight: bold; color: var(--highlight-color); text-shadow: 1px 1px 2px black; z-index: 10; pointer-events: none; }
+        .cell-note-label { position: absolute; bottom: 2px; right: 2px; font-size: 9px; color: rgba(255,255,255,0.7); pointer-events: none; background: rgba(0,0,0,0.4); padding: 0 2px; border-radius: 2px; }
 
-        .unit {
-            width: 50px; height: 50px;
-            border-radius: 50%; border: 2px solid var(--highlight-color); 
-            display: flex; justify-content: center; align-items: center;
-            font-weight: 700; color: white; font-size: 14px; position: relative;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.6);
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-            z-index: 5;
-            pointer-events: none;
-        }
+        .unit { width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--highlight-color); display: flex; justify-content: center; align-items: center; font-weight: 700; color: white; font-size: 14px; position: relative; box-shadow: 0 3px 6px rgba(0,0,0,0.6); z-index: 5; pointer-events: none; }
         .unit.small-text { font-size: 10px; }
         .ally { background: linear-gradient(135deg, #2ecc71, #27ae60); }
         .enemy { background: linear-gradient(135deg, #e74c3c, #c0392b); }
         .neutral { background: linear-gradient(135deg, #f39c12, #e67e22); }
 
-        .unit-arrow {
-            position: absolute; width: 0; height: 0; 
-            border-left: 5px solid transparent; border-right: 5px solid transparent;
-            border-bottom: 8px solid var(--highlight-color); 
-            top: -12px; left: 50%; transform: translateX(-50%);
-            transform-origin: center 28px;
-        }
+        .unit-arrow { position: absolute; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 8px solid var(--highlight-color); top: -12px; left: 50%; transform: translateX(-50%); transform-origin: center 28px; }
         .facing-top { transform: translateX(-50%) rotate(0deg); }
         .facing-right { transform: translateX(-50%) rotate(90deg); }
         .facing-bottom { transform: translateX(-50%) rotate(180deg); }
         .facing-left { transform: translateX(-50%) rotate(270deg); }
 
-        #ghost-unit {
-            position: fixed;
-            pointer-events: none;
-            opacity: 0.7;
-            z-index: 9999;
-            display: none;
-            transform: translate(-50%, -50%);
-        }
+        /* 快照頁籤回歸 */
+        #history-tabs-container { margin-top: 15px; display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; border-top: 1px dashed #5d748f; padding-top: 15px; }
+        .history-tab { background-color: #4a627a; border: 1px solid #5d748f; color: #bdc3c7; padding: 6px 12px; border-radius: 20px; white-space: nowrap; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+        .history-tab.active { background-color: var(--highlight-color); color: #2c3e50; font-weight: bold; }
+        .tab-icon-btn { background: rgba(0,0,0,0.15); color: white; border-radius: 4px; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px; }
 
-        /* 懸浮資訊方塊 */
-        #unit-tooltip {
-            position: fixed;
-            z-index: 10000;
-            background: var(--tooltip-bg);
-            color: white;
-            padding: 10px 14px;
-            border-radius: 8px;
-            font-size: 13px;
-            pointer-events: none;
-            display: none;
-            max-width: 250px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            border: 1px solid var(--highlight-color);
-            line-height: 1.5;
-        }
-        .tooltip-header {
-            font-weight: bold;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-            margin-bottom: 5px;
-            padding-bottom: 3px;
-            color: var(--highlight-color);
-            display: flex;
-            justify-content: space-between;
-        }
-        .tooltip-desc {
-            color: #ddd;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-
+        /* Tooltip 與 Modal */
+        #unit-tooltip { position: fixed; z-index: 10000; background: var(--tooltip-bg); color: white; padding: 10px; border-radius: 8px; display: none; pointer-events: none; border: 1px solid var(--highlight-color); }
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); }
-        .modal-content { 
-            background: var(--panel-bg); margin: 5vh auto; padding: 25px; 
-            width: 90%; max-width: 450px; border-radius: 10px; border: 2px solid var(--accent-color);
-            max-height: 85vh; overflow-y: auto;
-        }
-        
-        .section-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-        @media (max-width: 768px) {
-            .section-grid { grid-template-columns: 1fr; }
-        }
-
-        #toast {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: var(--highlight-color); color: #2c3e50;
-            padding: 10px 20px; border-radius: 30px; font-weight: bold;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 2000;
-            display: none; animation: fadeInOut 2s forwards;
-        }
-        @keyframes fadeInOut {
-            0% { opacity: 0; transform: translate(-50%, 20px); }
-            15% { opacity: 1; transform: translate(-50%, 0); }
-            85% { opacity: 1; transform: translate(-50%, 0); }
-            100% { opacity: 0; transform: translate(-50%, -20px); }
-        }
+        .modal-content { background: var(--panel-bg); margin: 5vh auto; padding: 25px; width: 90%; max-width: 450px; border-radius: 10px; border: 2px solid var(--accent-color); }
+        #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--highlight-color); color: #2c3e50; padding: 10px 20px; border-radius: 30px; font-weight: bold; display: none; z-index: 2000; }
     </style>
 </head>
 <body>
 
     <header>
-        <h1 id="ui-title">♟️ TacticsBoard Pro v5.8</h1>
+        <h1 id="ui-title">♟️ TacticsBoard Pro v5.9</h1>
         <button onclick="toggleLanguage()" style="background:#8e44ad">🌐 EN / 中文</button>
     </header>
 
     <div id="app-container">
-        <div class="section-grid">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <section>
                 <h3 id="ui-config-title">📐 棋盤與縮放</h3>
                 <div class="controls-row">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <label>寬:</label> <input type="number" id="board-width" value="6" style="width:50px">
-                        <label>高:</label> <input type="number" id="board-height" value="8" style="width:50px">
-                        <button class="secondary" onclick="initializeBoard()" id="btn-reset">🔄 重置</button>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 10px; background: #2c3e50; padding: 5px 15px; border-radius: 20px;">
+                    <label>寬:</label> <input type="number" id="board-width" value="6" style="width:50px">
+                    <label>高:</label> <input type="number" id="board-height" value="8" style="width:50px">
+                    <button class="secondary" onclick="initializeBoard()" id="btn-reset">🔄 重置</button>
+                    <div style="display:flex; align-items:center; gap:10px; background:#2c3e50; padding:5px 10px; border-radius:20px;">
                         <label id="ui-label-zoom">縮放:</label>
                         <input type="range" id="zoom-slider" min="0.5" max="2" step="0.1" value="1" oninput="updateZoom()">
-                        <span id="zoom-val" style="min-width: 45px; font-weight: bold;">100%</span>
+                        <span id="zoom-val" style="min-width:40px">100%</span>
                     </div>
                 </div>
             </section>
@@ -304,7 +106,7 @@
             <section>
                 <h3 id="ui-io-title">📤 分享與匯出</h3>
                 <div class="controls-row">
-                    <button onclick="openExportModal()" id="btn-export">📤 產生代碼 / 連結</button>
+                    <button onclick="openExportModal()" id="btn-export">📤 產生代碼</button>
                     <button onclick="openImportModal()" id="btn-import">📥 匯入代碼</button>
                 </div>
             </section>
@@ -312,77 +114,71 @@
 
         <section>
             <h3 id="ui-history-title">🎞️ 快照紀錄</h3>
-            <div class="controls-row">
-                <button class="success" onclick="takeSnapshot()" id="btn-snapshot">📸 建立快照</button>
-            </div>
+            <button class="success" onclick="takeSnapshot()" id="btn-snapshot">📸 建立快照</button>
             <div id="history-tabs-container"></div>
         </section>
         
         <div id="board-scroll-wrapper">
-            <div id="chessboard-container"></div>
+            <div id="board-sizer">
+                <div id="board-scaler">
+                    <div id="chessboard-container"></div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- 輔助 UI 元素 -->
-    <div id="ghost-unit" class="unit"></div>
+    <div id="ghost-unit" class="unit" style="position:fixed; display:none; opacity:0.7; z-index:9999;"></div>
     <div id="unit-tooltip">
-        <div class="tooltip-header"><span id="tt-name"></span><span id="tt-faction" style="font-size:10px; opacity:0.8"></span></div>
-        <div class="tooltip-desc" id="tt-desc"></div>
+        <div id="tt-name" style="font-weight:bold; color:var(--highlight-color)"></div>
+        <div id="tt-desc" style="font-size:12px; white-space:pre-wrap;"></div>
     </div>
-    <div id="toast">已複製到剪貼簿</div>
+    <div id="toast"></div>
 
-    <!-- 編輯 Modal -->
     <div id="edit-modal" class="modal">
         <div class="modal-content">
-            <h4 style="margin-top:0" id="ui-edit-title">✏️ 編輯</h4>
-            <div class="form-group">
-                <label id="ui-label-type">類型：</label>
-                <select id="edit-type" style="width:100%;" onchange="toggleEditFields()">
-                    <option value="unit">棋子 (Unit)</option>
-                    <option value="cell">地形 (Cell)</option>
-                    <option value="clear">清除 (Clear)</option>
-                </select>
-            </div>
+            <h4 id="ui-edit-title">✏️ 編輯</h4>
+            <select id="edit-type" style="width:100%;" onchange="toggleEditFields()">
+                <option value="unit">棋子 (Unit)</option>
+                <option value="cell">地形 (Cell)</option>
+                <option value="clear">清除</option>
+            </select>
             <div id="unit-fields">
-                <div style="margin-top:15px"><label id="ui-label-faction">陣營：</label><select id="edit-faction" style="width:100%;"><option value="ally">我方</option><option value="enemy">敵方</option><option value="neutral">中立</option></select></div>
-                <div style="margin-top:15px"><label id="ui-label-facing">朝向：</label><select id="edit-facing" style="width:100%;"><option value="">無</option><option value="top">上</option><option value="bottom">下</option><option value="left">左</option><option value="right">右</option></select></div>
-                <div style="margin-top:15px"><label id="ui-label-note">簡稱：</label><input type="text" id="edit-unit-note" style="width:100%;" maxlength="5"></div>
-                <div style="margin-top:15px"><label id="ui-label-desc">說明：</label><textarea id="edit-unit-desc" style="width:100%; height:80px;"></textarea></div>
+                <div style="margin-top:10px"><label>陣營:</label><select id="edit-faction" style="width:100%;"><option value="ally">我方</option><option value="enemy">敵方</option><option value="neutral">中立</option></select></div>
+                <div style="margin-top:10px"><label>朝向:</label><select id="edit-facing" style="width:100%;"><option value="">無</option><option value="top">上</option><option value="bottom">下</option><option value="left">左</option><option value="right">右</option></select></div>
+                <div style="margin-top:10px"><label>移動順序:</label><input type="number" id="edit-move-order" style="width:100%;"></div>
+                <div style="margin-top:10px"><label>簡稱:</label><input type="text" id="edit-unit-note" style="width:100%;"></div>
+                <div style="margin-top:10px"><label>說明:</label><textarea id="edit-unit-desc" style="width:100%; height:60px;"></textarea></div>
             </div>
             <div id="cell-fields" style="display:none">
-                <div style="margin-top:15px"><label id="ui-label-cell-color">顏色：</label><input type="color" id="edit-cell-color" style="width:100%; height:40px;"></div>
-                <div style="margin-top:15px"><label id="ui-label-cell-note">備註：</label><input type="text" id="edit-cell-note" style="width:100%;" maxlength="10"></div>
+                <div style="margin-top:10px"><label>顏色:</label><input type="color" id="edit-cell-color" style="width:100%;"></div>
+                <div style="margin-top:10px"><label>備註:</label><input type="text" id="edit-cell-note" style="width:100%;"></div>
             </div>
             <div style="margin-top:20px; display:flex; gap:10px;">
-                <button onclick="applyEdit()" class="success" id="btn-confirm" style="flex:1">確認</button>
-                <button onclick="closeModals()" class="secondary" id="btn-cancel" style="flex:1">取消</button>
+                <button onclick="applyEdit()" class="success" style="flex:1">確認</button>
+                <button onclick="closeModals()" class="secondary" style="flex:1">取消</button>
             </div>
         </div>
     </div>
 
-    <!-- 代碼 Modal -->
     <div id="code-modal" class="modal">
         <div class="modal-content">
             <h4 id="code-title">數據分享</h4>
-            <textarea id="code-area" style="width: 100%; height: 150px; background: #1a252f; color: #2ecc71; font-family: monospace; font-size: 11px;"></textarea>
-            
-            <div id="export-actions" style="margin-top:15px; display:flex; flex-direction:column; gap:10px;">
+            <textarea id="code-area" style="width: 100%; height: 120px; font-size:10px;"></textarea>
+            <div id="export-actions" style="margin-top:10px; display:flex; flex-direction:column; gap:10px;">
                 <button onclick="copyToClipboard('code')" class="success">📋 複製代碼</button>
-                <button onclick="copyToClipboard('link')" style="background:#e67e22">🔗 複製分享連結</button>
+                <button onclick="copyToClipboard('link')" style="background:#e67e22">🔗 複製連結</button>
             </div>
-            
-            <div id="import-actions" style="display:none; margin-top:15px">
+            <div id="import-actions" style="display:none; margin-top:10px;">
                 <button onclick="processImport()" class="success" style="width:100%">🚀 執行匯入</button>
             </div>
-            <button onclick="closeModals()" class="secondary" style="margin-top:10px; width: 100%;">關閉</button>
+            <button onclick="closeModals()" class="secondary" style="width:100%; margin-top:10px;">關閉</button>
         </div>
     </div>
 
-    <!-- 重新命名 Modal -->
     <div id="rename-modal" class="modal">
         <div class="modal-content">
-            <h4 id="ui-rename-title">🏷️ 重新命名快照</h4>
-            <input type="text" id="rename-input" style="width:100%; margin-top:10px;">
+            <h4 id="ui-rename-title">🏷️ 重新命名</h4>
+            <input type="text" id="rename-input" style="width:100%;">
             <div style="margin-top:20px; display:flex; gap:10px;">
                 <button onclick="applyRename()" class="success" style="flex:1">儲存</button>
                 <button onclick="closeModals()" class="secondary" style="flex:1">取消</button>
@@ -392,70 +188,20 @@
 
     <script>
         const langPack = {
-            zh: {
-                title: "♟️ TacticsBoard Pro v5.8",
-                configTitle: "📐 棋盤與縮放",
-                ioTitle: "📤 分享與匯出",
-                historyTitle: "🎞️ 快照紀錄",
-                btnExport: "📤 產生代碼 / 連結",
-                btnImport: "📥 匯入代碼",
-                btnReset: "🔄 重置",
-                btnSnapshot: "📸 建立快照",
-                editTitle: "✏️ 編輯單元",
-                labelZoom: "縮放:",
-                initStep: "初始狀態",
-                renameTitle: "🏷️ 重新命名快照",
-                toastCopy: "已複製到剪貼簿",
-                importSuccess: "數據匯入成功！",
-                factionNames: { ally: "我方", enemy: "敵方", neutral: "中立" }
-            },
-            en: {
-                title: "♟️ TacticsBoard Pro v5.8",
-                configTitle: "📐 Board & Zoom",
-                ioTitle: "📤 Share & Export",
-                historyTitle: "🎞️ Snapshots",
-                btnExport: "📤 Get Code / Link",
-                btnImport: "📥 Import Code",
-                btnReset: "🔄 Reset",
-                btnSnapshot: "📸 New Snapshot",
-                editTitle: "✏️ Edit Element",
-                labelZoom: "Zoom:",
-                initStep: "Initial",
-                renameTitle: "🏷️ Rename Snapshot",
-                toastCopy: "Copied to clipboard",
-                importSuccess: "Import successful!",
-                factionNames: { ally: "Ally", enemy: "Enemy", neutral: "Neutral" }
-            }
+            zh: { title: "♟️ TacticsBoard Pro v5.9", configTitle: "📐 棋盤與縮放", ioTitle: "📤 分享與匯出", historyTitle: "🎞️ 快照紀錄", btnExport: "📤 產生代碼", btnImport: "📥 匯入代碼", btnReset: "🔄 重置", btnSnapshot: "📸 建立快照", labelZoom: "縮放:", initStep: "初始狀態", renameTitle: "🏷️ 重新命名快照", toastCopy: "已複製到剪貼簿", importSuccess: "數據匯入成功！" },
+            en: { title: "♟️ TacticsBoard Pro v5.9", configTitle: "📐 Board & Zoom", ioTitle: "📤 Share & Export", historyTitle: "🎞️ Snapshots", btnExport: "📤 Get Code", btnImport: "📥 Import Code", btnReset: "🔄 Reset", btnSnapshot: "📸 New Snapshot", labelZoom: "Zoom:", initStep: "Initial", renameTitle: "🏷️ Rename Snapshot", toastCopy: "Copied!", importSuccess: "Import success!" }
         };
 
         let currentLang = 'zh';
         let BOARD_WIDTH = 6, BOARD_HEIGHT = 8;
         let boardState = [], unitList = {}, nextUnitId = 1;
         let snapshots = [], currentSnapshotIdx = -1;
-        let editR = -1, editC = -1;
-        let currentZoom = 1;
-        let renamingIdx = -1;
+        let editR = -1, editC = -1, currentZoom = 1, renamingIdx = -1;
+        let isDragging = false, dragTargetId = null, pressTimer = null, hoverTimer = null;
 
-        let pressTimer = null;
-        let isDragging = false;
-        let dragTargetId = null;
-
-        // 懸浮提示相關
-        let hoverTimer = null;
-        let activeTooltipUnit = null;
-
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            toast.innerText = msg || langPack[currentLang].toastCopy;
-            toast.style.display = 'block';
-            setTimeout(() => { toast.style.display = 'none'; }, 2000);
-        }
-
-        function toggleLanguage() {
-            currentLang = (currentLang === 'zh') ? 'en' : 'zh';
-            updateUI();
-        }
-
+        function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg || langPack[currentLang].toastCopy; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 2000); }
+        function toggleLanguage() { currentLang = (currentLang === 'zh') ? 'en' : 'zh'; updateUI(); }
+        
         function updateUI() {
             const t = langPack[currentLang];
             document.getElementById('ui-title').innerText = t.title;
@@ -471,19 +217,22 @@
             renderTabs();
         }
 
+        // --- 核心縮放修復 ---
         function updateZoom() {
             currentZoom = parseFloat(document.getElementById('zoom-slider').value);
             document.getElementById('zoom-val').innerText = Math.round(currentZoom * 100) + "%";
+            const scaler = document.getElementById('board-scaler');
+            const sizer = document.getElementById('board-sizer');
             const container = document.getElementById('chessboard-container');
-            container.style.transform = `scale(${currentZoom})`;
+            scaler.style.transform = `scale(${currentZoom})`;
+            sizer.style.width = (container.offsetWidth * currentZoom + 120) + "px";
+            sizer.style.height = (container.offsetHeight * currentZoom + 120) + "px";
         }
 
         function initializeBoard() {
             BOARD_WIDTH = parseInt(document.getElementById('board-width').value) || 6;
             BOARD_HEIGHT = parseInt(document.getElementById('board-height').value) || 8;
-            boardState = Array(BOARD_HEIGHT).fill(0).map(() => 
-                Array(BOARD_WIDTH).fill(0).map(() => ({ cellColor: '#5d748f', cellNote: '' }))
-            );
+            boardState = Array(BOARD_HEIGHT).fill(0).map(() => Array(BOARD_WIDTH).fill(0).map(() => ({ cellColor: '#5d748f', cellNote: '' })));
             unitList = {}; nextUnitId = 1; snapshots = [];
             takeSnapshot(langPack[currentLang].initStep);
         }
@@ -492,348 +241,181 @@
             const container = document.getElementById('chessboard-container');
             container.innerHTML = '';
             container.style.gridTemplateColumns = `repeat(${BOARD_WIDTH}, 60px)`;
-            
             for (let r = 0; r < BOARD_HEIGHT; r++) {
                 for (let c = 0; c < BOARD_WIDTH; c++) {
                     const cell = document.createElement('div');
-                    cell.className = 'cell';
-                    cell.dataset.r = r;
-                    cell.dataset.c = c;
+                    cell.className = 'cell'; cell.dataset.r = r; cell.dataset.c = c;
                     const s = boardState[r][c];
                     cell.style.backgroundColor = s.cellColor;
+                    if(s.cellNote) { const n = document.createElement('div'); n.className = 'cell-note-label'; n.innerText = s.cellNote; cell.appendChild(n); }
                     
-                    if(s.cellNote) {
-                        const note = document.createElement('div');
-                        note.className = 'cell-note-label';
-                        note.innerText = s.cellNote;
-                        cell.appendChild(note);
-                    }
-
-                    // 事件綁定
                     cell.onmousedown = (e) => startPress(e, r, c);
                     cell.ontouchstart = (e) => startPress(e, r, c);
-                    cell.onmouseenter = (e) => startHover(e, r, c);
-                    cell.onmouseleave = clearHover;
+                    cell.onmouseenter = (e) => { const uid = getUidAt(r,c); if(uid) hoverTimer = setTimeout(()=>showTooltip(uid, e), 500); };
+                    cell.onmouseleave = hideTooltip;
                     cell.onmousemove = updateTooltipPos;
-                    
-                    cell.onclick = (e) => {
-                        if (isDragging) return;
-                        openEditModal(r, c);
-                    };
+                    cell.onclick = (e) => { if(!isDragging) openEditModal(r,c); };
 
-                    const uid = Object.keys(unitList).find(id => unitList[id].r === r && unitList[id].c === c);
-                    if(uid && !(isDragging && dragTargetId === uid)) {
+                    const uid = getUidAt(r,c);
+                    if(uid && dragTargetId !== uid) {
                         const u = unitList[uid];
+                        if(u.moveOrder) { const ol = document.createElement('div'); ol.className='move-order-label'; ol.innerText=u.moveOrder; cell.appendChild(ol); }
                         const unitEl = document.createElement('div');
-                        unitEl.className = `unit ${u.faction}`;
-                        unitEl.textContent = u.note || uid;
+                        unitEl.className = `unit ${u.faction}`; unitEl.textContent = u.note || uid;
                         if(unitEl.textContent.length > 3) unitEl.classList.add('small-text');
-                        
-                        if(u.facing) {
-                            const arrow = document.createElement('div');
-                            arrow.className = `unit-arrow facing-${u.facing}`;
-                            unitEl.appendChild(arrow);
-                        }
+                        if(u.facing) { const ar = document.createElement('div'); ar.className = `unit-arrow facing-${u.facing}`; unitEl.appendChild(ar); }
                         cell.appendChild(unitEl);
                     }
                     container.appendChild(cell);
                 }
             }
-            updateZoom();
+            setTimeout(updateZoom, 0);
         }
 
-        // 懸浮資訊邏輯
-        function startHover(e, r, c) {
-            const uid = Object.keys(unitList).find(id => unitList[id].r === r && unitList[id].c === c);
-            if (!uid || isDragging) return;
-            
-            hoverTimer = setTimeout(() => {
-                showTooltip(uid, e);
-            }, 500); // 500ms 觸發
-        }
+        function getUidAt(r, c) { return Object.keys(unitList).find(id => unitList[id].r === r && unitList[id].c === c); }
 
-        function clearHover() {
-            clearTimeout(hoverTimer);
-            hideTooltip();
-        }
-
-        function showTooltip(uid, e) {
-            const u = unitList[uid];
-            if (!u.desc && !u.note) return; // 沒有內容則不顯示
-
-            const tooltip = document.getElementById('unit-tooltip');
-            document.getElementById('tt-name').innerText = u.note || `Unit #${uid}`;
-            document.getElementById('tt-faction').innerText = langPack[currentLang].factionNames[u.faction];
-            document.getElementById('tt-desc').innerText = u.desc || "";
-            
-            tooltip.style.display = 'block';
-            updateTooltipPos(e);
-        }
-
-        function updateTooltipPos(e) {
-            const tooltip = document.getElementById('unit-tooltip');
-            if (tooltip.style.display === 'block') {
-                const x = e.clientX + 15;
-                const y = e.clientY + 15;
-                tooltip.style.left = x + 'px';
-                tooltip.style.top = y + 'px';
-            }
-        }
-
-        function hideTooltip() {
-            document.getElementById('unit-tooltip').style.display = 'none';
-        }
-
-        // 拖拽邏輯
+        // --- 拖拽邏輯回歸 ---
         function startPress(e, r, c) {
-            const uid = Object.keys(unitList).find(id => unitList[id].r === r && unitList[id].c === c);
-            if (!uid) return;
-            pressTimer = setTimeout(() => { startDragging(uid, e); }, 450);
-            const cancel = () => { clearTimeout(pressTimer); };
+            const uid = getUidAt(r,c); if(!uid) return;
+            pressTimer = setTimeout(() => startDragging(uid, e), 400);
+            const cancel = () => clearTimeout(pressTimer);
             window.addEventListener('mouseup', cancel, {once:true});
             window.addEventListener('touchend', cancel, {once:true});
         }
 
         function startDragging(uid, e) {
-            hideTooltip(); // 拖拽時隱藏提示
-            isDragging = true;
-            dragTargetId = uid;
-            const u = unitList[uid];
-            const ghost = document.getElementById('ghost-unit');
-            ghost.className = `unit ${u.faction}`;
-            ghost.textContent = u.note || uid;
-            ghost.style.width = (50 * currentZoom) + "px";
-            ghost.style.height = (50 * currentZoom) + "px";
-            ghost.style.fontSize = (14 * currentZoom) + "px";
-            ghost.style.display = 'flex';
-            moveGhost(e);
+            isDragging = true; dragTargetId = uid; hideTooltip();
+            const u = unitList[uid]; const ghost = document.getElementById('ghost-unit');
+            ghost.className = `unit ${u.faction}`; ghost.textContent = u.note || uid;
+            ghost.style.display = 'flex'; moveGhost(e);
             renderBoard();
             window.addEventListener('mousemove', moveGhost);
-            window.addEventListener('touchmove', moveGhost, { passive: false });
-            window.addEventListener('mouseup', endDragging, { once: true });
-            window.addEventListener('touchend', endDragging, { once: true });
+            window.addEventListener('touchmove', moveGhost, {passive:false});
+            window.addEventListener('mouseup', endDragging, {once:true});
+            window.addEventListener('touchend', endDragging, {once:true});
         }
 
         function moveGhost(e) {
-            if (!isDragging) return;
-            if (e.cancelable) e.preventDefault();
-            const ghost = document.getElementById('ghost-unit');
             const x = e.touches ? e.touches[0].clientX : e.clientX;
             const y = e.touches ? e.touches[0].clientY : e.clientY;
-            ghost.style.left = x + 'px';
-            ghost.style.top = y + 'px';
+            const g = document.getElementById('ghost-unit');
+            g.style.left = x + 'px'; g.style.top = y + 'px';
+            if(e.cancelable) e.preventDefault();
         }
 
         function endDragging(e) {
-            if (!isDragging) return;
-            const ghost = document.getElementById('ghost-unit');
-            ghost.style.display = 'none';
             const x = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
             const y = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
-            const targetEl = document.elementFromPoint(x, y);
-            const cell = targetEl ? targetEl.closest('.cell') : null;
-            if (cell) {
-                const nr = parseInt(cell.dataset.r);
-                const nc = parseInt(cell.dataset.c);
-                if (!Object.keys(unitList).find(id => unitList[id].r === nr && unitList[id].c === nc && id !== dragTargetId)) {
-                    unitList[dragTargetId].r = nr;
-                    unitList[dragTargetId].c = nc;
-                }
+            const target = document.elementFromPoint(x,y);
+            const cell = target ? target.closest('.cell') : null;
+            if(cell) {
+                const nr = parseInt(cell.dataset.r), nc = parseInt(cell.dataset.c);
+                if(!getUidAt(nr, nc)) { unitList[dragTargetId].r = nr; unitList[dragTargetId].c = nc; }
             }
             isDragging = false; dragTargetId = null;
+            document.getElementById('ghost-unit').style.display = 'none';
             window.removeEventListener('mousemove', moveGhost);
             window.removeEventListener('touchmove', moveGhost);
             renderBoard();
         }
 
-        function openEditModal(r, c) {
-            hideTooltip();
-            editR = r; editC = c;
-            const uid = Object.keys(unitList).find(id => unitList[id].r === r && unitList[id].c === c);
-            const typeSel = document.getElementById('edit-type');
-            if(uid) {
-                typeSel.value = 'unit';
-                const u = unitList[uid];
-                document.getElementById('edit-faction').value = u.faction;
-                document.getElementById('edit-facing').value = u.facing || "";
-                document.getElementById('edit-unit-note').value = u.note || "";
-                document.getElementById('edit-unit-desc').value = u.desc || "";
-            } else {
-                typeSel.value = 'cell';
-                const s = boardState[r][c];
-                document.getElementById('edit-cell-color').value = s.cellColor || "#5d748f";
-                document.getElementById('edit-cell-note').value = s.cellNote || "";
+        // --- Tooltip ---
+        function showTooltip(uid, e) {
+            const u = unitList[uid]; if(!u.desc && !u.note) return;
+            const tt = document.getElementById('unit-tooltip');
+            document.getElementById('tt-name').innerText = u.note || `Unit #${uid}`;
+            document.getElementById('tt-desc').innerText = u.desc || "";
+            tt.style.display = 'block'; updateTooltipPos(e);
+        }
+        function updateTooltipPos(e) {
+            const tt = document.getElementById('unit-tooltip');
+            if(tt.style.display==='block') {
+                const x = (e.touches?e.touches[0].clientX:e.clientX)+15;
+                const y = (e.touches?e.touches[0].clientY:e.clientY)+15;
+                tt.style.left=x+'px'; tt.style.top=y+'px';
             }
-            toggleEditFields();
-            document.getElementById('edit-modal').style.display = 'block';
         }
+        function hideTooltip() { clearTimeout(hoverTimer); document.getElementById('unit-tooltip').style.display='none'; }
 
-        function toggleEditFields() {
-            const val = document.getElementById('edit-type').value;
-            document.getElementById('unit-fields').style.display = (val === 'unit') ? 'block' : 'none';
-            document.getElementById('cell-fields').style.display = (val === 'cell') ? 'block' : 'none';
-        }
-
-        function applyEdit() {
-            const type = document.getElementById('edit-type').value;
-            const uid = Object.keys(unitList).find(id => unitList[id].r === editR && unitList[id].c === editC);
-            if(type === 'clear') {
-                if(uid) delete unitList[uid];
-                boardState[editR][editC] = { cellColor: '#5d748f', cellNote: '' };
-            } else if(type === 'unit') {
-                const uData = { faction: document.getElementById('edit-faction').value, facing: document.getElementById('edit-facing').value, note: document.getElementById('edit-unit-note').value, desc: document.getElementById('edit-unit-desc').value, r: editR, c: editC };
-                if(uid) unitList[uid] = uData; else unitList[nextUnitId++] = uData;
-            } else if(type === 'cell') {
-                if(uid) delete unitList[uid];
-                boardState[editR][editC] = { cellColor: document.getElementById('edit-cell-color').value, cellNote: document.getElementById('edit-cell-note').value };
-            }
-            renderBoard(); closeModals();
-        }
-
+        // --- 快照管理回歸 ---
         function takeSnapshot(name) {
-            snapshots.push({
-                name: name || `Step ${snapshots.length + 1}`,
-                data: JSON.parse(JSON.stringify({ boardState, unitList, nextUnitId, w: BOARD_WIDTH, h: BOARD_HEIGHT }))
-            });
-            currentSnapshotIdx = snapshots.length - 1;
-            renderTabs(); renderBoard();
+            snapshots.push({ name: name || `Step ${snapshots.length + 1}`, data: JSON.parse(JSON.stringify({ boardState, unitList, nextUnitId, w: BOARD_WIDTH, h: BOARD_HEIGHT })) });
+            currentSnapshotIdx = snapshots.length - 1; renderTabs(); renderBoard();
         }
-
-        function openRenameModal(idx, e) {
-            if (e) e.stopPropagation();
-            renamingIdx = idx;
-            document.getElementById('rename-input').value = snapshots[idx].name;
-            document.getElementById('rename-modal').style.display = 'block';
-            setTimeout(() => document.getElementById('rename-input').focus(), 100);
-        }
-
-        function applyRename() {
-            const newName = document.getElementById('rename-input').value.trim();
-            if (newName && renamingIdx !== -1) { snapshots[renamingIdx].name = newName; renderTabs(); }
-            closeModals();
-        }
-
-        function deleteSnapshot(idx, e) {
-            if (e) e.stopPropagation();
-            if (idx === 0) return; 
-            snapshots.splice(idx, 1);
-            if (currentSnapshotIdx === idx) currentSnapshotIdx = Math.max(0, idx - 1);
-            else if (currentSnapshotIdx > idx) currentSnapshotIdx--;
-            loadSnapshot(currentSnapshotIdx);
-        }
-
         function loadSnapshot(idx) {
             const s = snapshots[idx].data;
-            boardState = JSON.parse(JSON.stringify(s.boardState));
-            unitList = JSON.parse(JSON.stringify(s.unitList));
-            nextUnitId = s.nextUnitId; BOARD_WIDTH = s.w; BOARD_HEIGHT = s.h;
-            currentSnapshotIdx = idx;
-            document.getElementById('board-width').value = BOARD_WIDTH;
-            document.getElementById('board-height').value = BOARD_HEIGHT;
+            boardState = s.boardState; unitList = s.unitList; nextUnitId = s.nextUnitId;
+            BOARD_WIDTH = s.w; BOARD_HEIGHT = s.h; currentSnapshotIdx = idx;
+            document.getElementById('board-width').value = BOARD_WIDTH; document.getElementById('board-height').value = BOARD_HEIGHT;
             renderBoard(); renderTabs();
         }
-
         function renderTabs() {
-            const container = document.getElementById('history-tabs-container');
-            container.innerHTML = '';
+            const container = document.getElementById('history-tabs-container'); container.innerHTML = '';
             snapshots.forEach((s, idx) => {
-                const tab = document.createElement('div');
-                tab.className = `history-tab ${idx === currentSnapshotIdx ? 'active' : ''}`;
-                
-                const label = document.createElement('span');
-                label.className = 'tab-label'; label.innerText = s.name;
-                tab.appendChild(label);
-
-                const renameBtn = document.createElement('div');
-                renameBtn.className = 'tab-icon-btn'; renameBtn.innerHTML = '✎';
-                renameBtn.onclick = (e) => openRenameModal(idx, e);
-                tab.appendChild(renameBtn);
-
-                if (idx !== 0) {
-                    const delBtn = document.createElement('div');
-                    delBtn.className = 'tab-icon-btn'; delBtn.innerText = '×';
-                    delBtn.onclick = (e) => deleteSnapshot(idx, e);
-                    tab.appendChild(delBtn);
-                }
-
-                tab.onclick = (e) => { if (!e.target.classList.contains('tab-icon-btn')) loadSnapshot(idx); };
+                const tab = document.createElement('div'); tab.className = `history-tab ${idx === currentSnapshotIdx ? 'active' : ''}`;
+                tab.innerHTML = `<span onclick="loadSnapshot(${idx})">${s.name}</span>`;
+                const ren = document.createElement('div'); ren.className='tab-icon-btn'; ren.innerText='✎'; ren.onclick=()=>openRenameModal(idx);
+                tab.appendChild(ren);
+                if(idx!==0){ const del=document.createElement('div'); del.className='tab-icon-btn'; del.innerText='×'; del.onclick=()=>deleteSnapshot(idx); tab.appendChild(del); }
                 container.appendChild(tab);
             });
         }
+        function openRenameModal(idx) { renamingIdx = idx; document.getElementById('rename-input').value = snapshots[idx].name; document.getElementById('rename-modal').style.display='block'; }
+        function applyRename() { snapshots[renamingIdx].name = document.getElementById('rename-input').value; closeModals(); renderTabs(); }
+        function deleteSnapshot(idx) { snapshots.splice(idx,1); if(currentSnapshotIdx>=idx) currentSnapshotIdx = Math.max(0, currentSnapshotIdx-1); loadSnapshot(currentSnapshotIdx); }
 
-        function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+        // --- 編輯功能 ---
+        function openEditModal(r,c) {
+            editR=r; editC=c; const uid = getUidAt(r,c);
+            if(uid) {
+                const u = unitList[uid]; document.getElementById('edit-type').value='unit';
+                document.getElementById('edit-faction').value=u.faction; document.getElementById('edit-facing').value=u.facing||"";
+                document.getElementById('edit-move-order').value=u.moveOrder||""; document.getElementById('edit-unit-note').value=u.note||"";
+                document.getElementById('edit-unit-desc').value=u.desc||"";
+            } else {
+                document.getElementById('edit-type').value='cell';
+                const s = boardState[r][c]; document.getElementById('edit-cell-color').value=s.cellColor; document.getElementById('edit-cell-note').value=s.cellNote;
+            }
+            toggleEditFields(); document.getElementById('edit-modal').style.display='block';
+        }
+        function toggleEditFields() {
+            const v = document.getElementById('edit-type').value;
+            document.getElementById('unit-fields').style.display = (v==='unit'?'block':'none');
+            document.getElementById('cell-fields').style.display = (v==='cell'?'block':'none');
+        }
+        function applyEdit() {
+            const type = document.getElementById('edit-type').value;
+            const uid = getUidAt(editR, editC);
+            if(type==='clear') { if(uid) delete unitList[uid]; boardState[editR][editC]={cellColor:'#5d748f', cellNote:''}; }
+            else if(type==='unit') {
+                const uData = { faction: document.getElementById('edit-faction').value, facing: document.getElementById('edit-facing').value, moveOrder: document.getElementById('edit-move-order').value, note: document.getElementById('edit-unit-note').value, desc: document.getElementById('edit-unit-desc').value, r:editR, c:editC };
+                if(uid) unitList[uid] = uData; else unitList[nextUnitId++] = uData;
+            } else { if(uid) delete unitList[uid]; boardState[editR][editC]={ cellColor: document.getElementById('edit-cell-color').value, cellNote: document.getElementById('edit-cell-note').value }; }
+            renderBoard(); closeModals();
+        }
 
+        // --- 分享匯入匯出 ---
+        function openExportModal() { document.getElementById('code-area').value = generateDataCode(); document.getElementById('export-actions').style.display='flex'; document.getElementById('import-actions').style.display='none'; document.getElementById('code-modal').style.display='block'; }
+        function openImportModal() { document.getElementById('code-area').value = ''; document.getElementById('export-actions').style.display='none'; document.getElementById('import-actions').style.display='block'; document.getElementById('code-modal').style.display='block'; }
         function generateDataCode() {
-            const payload = JSON.stringify({ v: "5.8", s: snapshots });
-            const compressed = pako.deflate(new TextEncoder().encode(payload));
+            const compressed = pako.deflate(new TextEncoder().encode(JSON.stringify({ v:"5.9", s:snapshots })));
             return btoa(String.fromCharCode.apply(null, compressed));
         }
-
-        function openExportModal() {
-            const code = generateDataCode();
-            document.getElementById('code-area').value = code;
-            document.getElementById('export-actions').style.display = "flex";
-            document.getElementById('import-actions').style.display = "none";
-            document.getElementById('code-modal').style.display = "block";
-        }
-
-        function openImportModal() {
-            document.getElementById('code-area').value = "";
-            document.getElementById('export-actions').style.display = "none";
-            document.getElementById('import-actions').style.display = "block";
-            document.getElementById('code-modal').style.display = "block";
-        }
-
-        function processImport(externalCode) {
-            const code = externalCode || document.getElementById('code-area').value.trim();
-            if(!code) return;
+        function processImport(ext) {
             try {
-                const binary = atob(code);
-                const charData = binary.split('').map(c => c.charCodeAt(0));
-                const decompressed = pako.inflate(new Uint8Array(charData));
-                const decoded = JSON.parse(new TextDecoder().decode(decompressed));
-                if(decoded.s) { 
-                    snapshots = decoded.s; 
-                    loadSnapshot(snapshots.length - 1); 
-                    closeModals();
-                    if(externalCode) showToast(langPack[currentLang].importSuccess);
-                }
-            } catch(e) { if(!externalCode) alert("Invalid code."); }
+                const bin = atob(ext || document.getElementById('code-area').value.trim());
+                const decoded = JSON.parse(new TextDecoder().decode(pako.inflate(new Uint8Array(bin.split('').map(c=>c.charCodeAt(0))))));
+                if(decoded.s) { snapshots = decoded.s; loadSnapshot(snapshots.length-1); closeModals(); if(ext) showToast(langPack[currentLang].importSuccess); }
+            } catch(e) { alert("Invalid code."); }
+        }
+        function copyToClipboard(m) {
+            const code = generateDataCode(); let text = code;
+            if(m==='link'){ const u=new URL(window.location.href); u.searchParams.set('data', code); text=u.toString(); }
+            navigator.clipboard.writeText(text).then(()=>showToast());
         }
 
-        function copyToClipboard(mode) {
-            const code = generateDataCode();
-            let textToCopy = code;
-            
-            if (mode === 'link') {
-                const url = new URL(window.location.href);
-                url.searchParams.set('data', code);
-                textToCopy = url.toString();
-            }
-
-            const area = document.getElementById('code-area');
-            const originalVal = area.value;
-            area.value = textToCopy;
-            area.select();
-            document.execCommand('copy');
-            area.value = originalVal;
-            showToast();
-        }
-
-        function checkUrlParams() {
-            const params = new URLSearchParams(window.location.search);
-            const data = params.get('data');
-            if (data) {
-                processImport(data);
-                window.history.replaceState({}, document.title, window.location.pathname);
-            }
-        }
-
-        window.onload = () => {
-            initializeBoard();
-            updateUI();
-            checkUrlParams();
-        };
+        function closeModals() { document.querySelectorAll('.modal').forEach(m=>m.style.display='none'); }
+        window.onload = () => { initializeBoard(); updateUI(); const p = new URLSearchParams(window.location.search).get('data'); if(p) processImport(p); };
     </script>
 </body>
 </html>
