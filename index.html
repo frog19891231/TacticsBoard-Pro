@@ -684,8 +684,8 @@
                             <p class="text-xs ml-4">• 滾輪上下：縮放地圖 (0.3x - 3x)</p>
                             <p class="text-xs ml-4">• 側邊欄設定：調整縮放比例</p>
                         </div>
-						
-						<div class="border-t border-slate-700 pt-3">
+
+                        <div class="border-t border-slate-700 pt-3">
                             <p class="font-semibold text-slate-100">⚙️ 環境設定</p>
                             <p class="text-xs ml-4 mt-1">• 畫布縮放：調整地圖顯示大小</p>
                             <p class="text-xs ml-4">• 網格尺寸：設定棋盤行列數量</p>
@@ -722,17 +722,17 @@
                             <p class="text-xs ml-4">• 不可拖拽到已有單位的格子</p>
                         </div>
 
-						
-						<div class="border-t border-slate-700 pt-3">
+
+                        <div class="border-t border-slate-700 pt-3">
                             <p class="font-semibold text-slate-100">💡 數據存檔指南</p>
                             <p class="text-xs ml-4 mt-1">• 雲端分享：將雲端分享網址複製到剪貼簿。</p>
-							<p class="text-xs ml-4">•手動匯入：支援雲端ID或長代碼進行恢復。</p>
+                            <p class="text-xs ml-4">•手動匯入：支援雲端ID或長代碼進行恢復。</p>
                             <p class="text-xs ml-4">•網址引導：會後自動讀取數據還原戰局。</p>
                         </div>
-						
-						<div class="border-t border-slate-700 pt-3">
-						
-						</div>
+
+                        <div class="border-t border-slate-700 pt-3">
+
+                        </div>
                     </div>
                 </form>
 
@@ -1233,6 +1233,7 @@
             const compressed = compressData(gameData);
             navigator.clipboard.writeText(compressed).then(() => {
                 console.log('✓ 壓縮代碼已複製到剪貼板');
+                alert('✓ 壓縮代碼已複製到剪貼板:'+'\n' + compressed);
             }).catch(err => {
                 console.error('✗ 複製失敗:', err);
             });
@@ -1246,6 +1247,7 @@
             const shareUrl = `${currentUrl}?data=${encodedData}`;
             navigator.clipboard.writeText(shareUrl).then(() => {
                 console.log('✓ 分享網址已複製到剪貼板');
+                alert('✓ 分享網址已複製到剪貼板:'+'\n' + shareUrl);
             }).catch(err => {
                 console.error('✗ 複製失敗:', err);
             });
@@ -1253,34 +1255,34 @@
 
         // 從 URL 參數載入數據
         async function loadDataFromUrl() {
-			const urlParams = new URLSearchParams(window.location.search);
-			const idParam = urlParams.get('id');     // 雲端 ID
-			const dataParam = urlParams.get('data'); // 本地代碼
+            const urlParams = new URLSearchParams(window.location.search);
+            const idParam = urlParams.get('id');     // 雲端 ID
+            const dataParam = urlParams.get('data'); // 本地代碼
 
-			try {
-				if (idParam) {
-					console.log("偵測到網址包含雲端 ID，正在自動提取...");
-					// 這裡需要等待 Firebase 初始化完成，建議加個小延遲或檢查機制
-					const cloudContent = await window.fbDownload(idParam);
-					if (cloudContent) {
-						gameData = decompressData(cloudContent);
-						renderAll();
-						console.log("✅ 網址雲端數據載入成功");
-					}
-				} else if (dataParam) {
-					gameData = decompressData(dataParam);
-					renderAll();
-					console.log("✅ 網址本地數據載入成功");
-				}
-				
-				// 清除網址參數，保持乾淨
-				if (idParam || dataParam) {
-					window.history.replaceState({}, document.title, window.location.href.split('?')[0]);
-				}
-			} catch (error) {
-				console.error("網址引導載入失敗:", error);
-			}
-		}
+            try {
+                if (idParam) {
+                    console.log("偵測到網址包含雲端 ID，正在自動提取...");
+                    // 這裡需要等待 Firebase 初始化完成，建議加個小延遲或檢查機制
+                    const cloudContent = await window.fbDownload(idParam);
+                    if (cloudContent) {
+                        gameData = decompressData(cloudContent);
+                        renderAll();
+                        console.log("✅ 網址雲端數據載入成功");
+                    }
+                } else if (dataParam) {
+                    gameData = decompressData(dataParam);
+                    renderAll();
+                    console.log("✅ 網址本地數據載入成功");
+                }
+
+                // 清除網址參數，保持乾淨
+                if (idParam || dataParam) {
+                    window.history.replaceState({}, document.title, window.location.href.split('?')[0]);
+                }
+            } catch (error) {
+                console.error("網址引導載入失敗:", error);
+            }
+        }
 
         // 匯入用戶提供的數據
         function importData() {
@@ -1314,7 +1316,6 @@
                 console.error('✗ 匯入失敗:', error.message);
             }
         }
-
         // 雲端上傳優化
         async function handleCloudUpload() {
             const btn = document.getElementById('btn-cloud-up');
@@ -1337,6 +1338,7 @@
                 // 呼叫 Firebase 模組掛載的 fbUpload
                 if (!window.fbUpload) throw new Error("Firebase 模組尚未就緒");
 
+                // 這裡取得 Firebase 回傳的唯一 ID
                 const docId = await window.fbUpload(compressed);
 
                 if (cloudInput) cloudInput.value = docId;
@@ -1344,16 +1346,27 @@
                     status.innerText = "✅ 已存至雲端";
                     status.className = "text-[10px] text-green-400 font-bold";
                 }
-                // --- 追加功能：組合網址並複製 ---
-				const baseUrl = window.location.href.split('?')[0];
-				const shareUrl = `${baseUrl}?id=${systemId}`;
-        
-				navigator.clipboard.writeText(shareUrl).then(() => {
-					alert("雲端存檔成功！\n分享網址已複製到剪貼簿：\n" + shareUrl);
-				});
-				
+
+                // --- 修正部分：使用剛剛取得的 docId 而非未定義的 systemId ---
+                const baseUrl = window.location.origin + window.location.pathname;
+                const shareUrl = `${baseUrl}?id=${docId}`;
+
+                // 複製到剪貼簿
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(shareUrl);
+                    console.log('分享網址已複製到剪貼簿：' + shareUrl);
+                    alert("雲端存檔成功！\n分享網址已複製到剪貼簿：\n" + shareUrl);
+                } else {
+                    // 備用方案：如果瀏覽器不支持 clipboard API
+                    console.log("Share URL:", shareUrl);
+                    alert("雲端存檔成功！ID 為: " + docId);
+                }
+
             } catch (e) {
-                if (status) status.innerText = "❌ 失敗";
+                if (status) {
+                    status.innerText = "❌ 失敗";
+                    status.className = "text-[10px] text-red-400 font-bold";
+                }
                 console.error("上傳失敗:", e);
                 alert("上傳失敗: " + e.message);
             } finally {
