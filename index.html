@@ -1233,7 +1233,7 @@
             const compressed = compressData(gameData);
             navigator.clipboard.writeText(compressed).then(() => {
                 console.log('✓ 壓縮代碼已複製到剪貼板');
-                alert('✓ 壓縮代碼已複製到剪貼板:'+'\n' + compressed);
+                alert('✓ 壓縮代碼已複製到剪貼板:' + '\n' + compressed);
             }).catch(err => {
                 console.error('✗ 複製失敗:', err);
             });
@@ -1247,7 +1247,7 @@
             const shareUrl = `${currentUrl}?data=${encodedData}`;
             navigator.clipboard.writeText(shareUrl).then(() => {
                 console.log('✓ 分享網址已複製到剪貼板');
-                alert('✓ 分享網址已複製到剪貼板:'+'\n' + shareUrl);
+                alert('✓ 分享網址已複製到剪貼板:' + '\n' + shareUrl);
             }).catch(err => {
                 console.error('✗ 複製失敗:', err);
             });
