@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TacticsBoard Pro v5.9.1</title>
+    <!--pako：用於 JSON 壓縮 / 解壓縮，讓分享代碼更短-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <style>
+        /* ---------- CSS 變數：集中管理整體配色 ---------- */
+        :root {
+            --bg-color: #2c3e50;
+            --panel-bg: #34495e;
+            --accent-color: #3498db;
+            --highlight-color: #f1c40f;
+            --text-color: #ecf0f1;
+            --danger-color: #e74c3c;
+            --success-color: #27ae60;
+            --tooltip-bg: rgba(0, 0, 0, 0.85);
+        }
+
+        /* ---------- 全站基礎樣式 ---------- */
+        body {
+            font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding-bottom: 50px;
+
+            /* 防止行動裝置誤觸選取 */
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        /* ---------- 應用程式主要容器 ---------- */
+        #app-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        h1,
+        h3 {
+            color: var(--highlight-color);
+            text-shadow: 1px 1px 2px #000;
+            margin-top: 0;
+        }
+
+        /* ---------- 頁首 ---------- */
+        header {
+            text-align: center;
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        /* ---------- 區塊樣式 ---------- */
+        section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: var(--bg-color);
+            border: 1px solid var(--accent-color);
+            border-radius: 6px;
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        /* ---------- 按鈕 ---------- */
+        button {
+            background-color: var(--accent-color);
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #2980b9;
+            transform: translateY(-1px);
+        }
+
+        button.success {
+            background-color: var(--success-color);
+        }
+
+        button.secondary {
+            background-color: #95a5a6;
+        }
+
+        button.danger {
+            background-color: var(--danger-color);
+        }
+
+        /* ---------- 表單 ---------- */
+        label {
+            font-weight: bold;
+        }
+
+        input[type="number"],
+        input[type="text"],
+        select,
+        textarea {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #5d748f;
+            background: #4a627a;
+            color: white;
+        }
+
+        /*  棋盤顯示與縮放系統 */
+        #board-scroll-wrapper {
+            width: 100%;
+            height: 650px;
+            overflow: auto;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            position: relative;
+        }
+
+        #board-sizer {
+            transform-origin: 0 0;
+            display: inline-block;
+        }
+
+        #board-scaler {
+            transform-origin: 0 0;
+            display: inline-block;
+            padding: 60px;
+        }
+
+        #chessboard-container {
+            display: inline-grid;
+            border: 4px solid #1abc9c;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7);
+            background-color: #34495e;
+            gap: 1px;
+            padding: 1px;
+        }
+
+        /* ---------- 棋盤格 ---------- */
+        .cell {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+            background-color: #5d748f;
+        }
+
+        .cell:hover {
+            outline: 2px solid var(--highlight-color);
+            z-index: 10;
+        }
+
+        /* ---------- 移動順序標籤 ---------- */
+        .move-order-label {
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            color: var(--highlight-color);
+            text-shadow: 1px 1px 2px black;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        /* ---------- 棋子 ---------- */
+        .cell-note-label {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.7);
+            pointer-events: none;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+
+        /* ---------- 棋子 ---------- */
+        .unit {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid var(--highlight-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 700;
+            color: white;
+            font-size: 14px;
+            position: relative;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.6);
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .unit.small-text {
+            font-size: 10px;
+        }
+
+        .ally {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+        }
+
+        .enemy {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .neutral {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+        }
+
+        .unit-arrow {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-bottom: 8px solid var(--highlight-color);
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            transform-origin: center 28px;
+        }
+
+        .facing-top {
+            transform: translateX(-50%) rotate(0deg);
+        }
+
+        .facing-right {
+            transform: translateX(-50%) rotate(90deg);
+        }
+
+        .facing-bottom {
+            transform: translateX(-50%) rotate(180deg);
+        }
+
+        .facing-left {
+            transform: translateX(-50%) rotate(270deg);
+        }
+
+        /* 快照頁籤回歸 */
+        #history-tabs-container {
+            margin-top: 15px;
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            border-top: 1px dashed #5d748f;
+            padding-top: 15px;
+        }
+
+        .history-tab {
+            background-color: #4a627a;
+            border: 1px solid #5d748f;
+            color: #bdc3c7;
+            padding: 6px 12px;
+            border-radius: 20px;
+            white-space: nowrap;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .history-tab.active {
+            background-color: var(--highlight-color);
+            color: #2c3e50;
+            font-weight: bold;
+        }
+
+        .tab-icon-btn {
+            background: rgba(0, 0, 0, 0.15);
+            color: white;
+            border-radius: 4px;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+        }
+
+        /* Tooltip 與 Modal */
+        #unit-tooltip {
+            position: fixed;
+            z-index: 10000;
+            background: var(--tooltip-bg);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            display: none;
+            pointer-events: none;
+            border: 1px solid var(--highlight-color);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+        }
+
+        .modal-content {
+            background: var(--panel-bg);
+            margin: 5vh auto;
+            padding: 25px;
+            width: 90%;
+            max-width: 450px;
+            border-radius: 10px;
+            border: 2px solid var(--accent-color);
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--highlight-color);
+            color: #2c3e50;
+            padding: 10px 20px;
+            border-radius: 30px;
+            font-weight: bold;
+            display: none;
+            z-index: 2000;
+        }
+    </style>
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-analytics.js";
+        // TODO: Add SDKs for Firebase products that you want to use
+        // https://firebase.google.com/docs/web/setup#available-libraries
+
+        // Your web app's Firebase configuration
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+        const firebaseConfig = {
+            apiKey: "AIzaSyBYNQwcxgE4guCdZYG_2_3GKr0IxBjnjqk",
+            authDomain: "tacticsboard-pro-sandbox-code.firebaseapp.com",
+            projectId: "tacticsboard-pro-sandbox-code",
+            storageBucket: "tacticsboard-pro-sandbox-code.firebasestorage.app",
+            messagingSenderId: "75158869780",
+            appId: "1:75158869780:web:a76d6183b5256a2b359401",
+            measurementId: "G-Y1KZ3ZQQ8K"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+    </script>
+</head>
+
+<body>
+
+    <header>
+        <h1 id="ui-title">♟️ TacticsBoard Pro v5.9.1</h1>
+        <button onclick="toggleLanguage()" style="background:#8e44ad">🌐 EN / 中文</button>
+    </header>
+
+    <div id="app-container">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <section>
+                <h3 id="ui-config-title">📐 棋盤與縮放</h3>
+                <div class="controls-row">
+                    <label>寬:</label> <input type="number" id="board-width" value="6" style="width:50px">
+                    <label>高:</label> <input type="number" id="board-height" value="8" style="width:50px">
+                    <button class="secondary" onclick="initializeBoard()" id="btn-reset">🔄 重置</button>
+                    <div
+                        style="display:flex; align-items:center; gap:10px; background:#2c3e50; padding:5px 10px; border-radius:20px;">
+                        <label id="ui-label-zoom">縮放:</label>
+                        <input type="range" id="zoom-slider" min="0.5" max="2" step="0.1" value="1"
+                            oninput="updateZoom()">
+                        <span id="zoom-val" style="min-width:40px">100%</span>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h3 id="ui-io-title">📤 分享與匯出</h3>
+                <div class="controls-row">
+                    <button onclick="openExportModal()" id="btn-export">📤 產生代碼</button>
+                    <button onclick="openImportModal()" id="btn-import">📥 匯入代碼</button>
+                </div>
+            </section>
+        </div>
+
+        <section>
+            <h3 id="ui-history-title">🎞️ 快照紀錄</h3>
+            <button class="success" onclick="takeSnapshot()" id="btn-snapshot">📸 建立快照</button>
+            <div id="history-tabs-container"></div>
+        </section>
+
+        <div id="board-scroll-wrapper">
+            <div id="board-sizer">
+                <div id="board-scaler">
+                    <div id="chessboard-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="ghost-unit" class="unit" style="position:fixed; display:none; opacity:0.7; z-index:9999;"></div>
+    <div id="unit-tooltip">
+        <div id="tt-name" style="font-weight:bold; color:var(--highlight-color)"></div>
+        <div id="tt-desc" style="font-size:12px; white-space:pre-wrap;"></div>
+    </div>
+    <div id="toast"></div>
+
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <h4 id="ui-edit-title">✏️ 編輯</h4>
+            <select id="edit-type" style="width:100%;" onchange="toggleEditFields()">
+                <option value="unit">棋子 (Unit)</option>
+                <option value="cell">地形 (Cell)</option>
+                <option value="clear">清除</option>
+            </select>
+            <div id="unit-fields">
+                <div style="margin-top:10px"><label>陣營:</label><select id="edit-faction" style="width:100%;">
+                        <option value="ally">我方</option>
+                        <option value="enemy">敵方</option>
+                        <option value="neutral">中立</option>
+                    </select></div>
+                <div style="margin-top:10px"><label>朝向:</label><select id="edit-facing" style="width:100%;">
+                        <option value="">無</option>
+                        <option value="top">上</option>
+                        <option value="bottom">下</option>
+                        <option value="left">左</option>
+                        <option value="right">右</option>
+                    </select></div>
+                <div style="margin-top:10px"><label>移動順序:</label><input type="number" id="edit-move-order"
+                        style="width:100%;"></div>
+                <div style="margin-top:10px"><label>簡稱:</label><input type="text" id="edit-unit-note"
+                        style="width:100%;"></div>
+                <div style="margin-top:10px"><label>說明:</label><textarea id="edit-unit-desc"
+                        style="width:100%; height:60px;"></textarea></div>
+            </div>
+            <div id="cell-fields" style="display:none">
+                <div style="margin-top:10px"><label>顏色:</label><input type="color" id="edit-cell-color"
+                        style="width:100%;"></div>
+                <div style="margin-top:10px"><label>備註:</label><input type="text" id="edit-cell-note"
+                        style="width:100%;"></div>
+            </div>
+            <div style="margin-top:20px; display:flex; gap:10px;">
+                <button onclick="applyEdit()" class="success" style="flex:1">確認</button>
+                <button onclick="closeModals()" class="secondary" style="flex:1">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="code-modal" class="modal">
+        <div class="modal-content">
+            <h4 id="code-title">數據分享</h4>
+            <textarea id="code-area" style="width: 100%; height: 120px; font-size:10px;"></textarea>
+            <div id="export-actions" style="margin-top:10px; display:flex; flex-direction:column; gap:10px;">
+                <button onclick="copyToClipboard('code')" class="success">📋 複製代碼</button>
+                <button onclick="copyToClipboard('link')" style="background:#e67e22">🔗 複製連結</button>
+            </div>
+            <div id="import-actions" style="display:none; margin-top:10px;">
+                <button onclick="processImport()" class="success" style="width:100%">🚀 執行匯入</button>
+            </div>
+            <button onclick="closeModals()" class="secondary" style="width:100%; margin-top:10px;">關閉</button>
+        </div>
+    </div>
+
+    <div id="rename-modal" class="modal">
+        <div class="modal-content">
+            <h4 id="ui-rename-title">🏷️ 重新命名</h4>
+            <input type="text" id="rename-input" style="width:100%;">
+            <div style="margin-top:20px; display:flex; gap:10px;">
+                <button onclick="applyRename()" class="success" style="flex:1">儲存</button>
+                <button onclick="closeModals()" class="secondary" style="flex:1">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const langPack = {
+            zh: { title: "♟️ TacticsBoard Pro v5.9.1", configTitle: "📐 棋盤與縮放", ioTitle: "📤 分享與匯出", historyTitle: "🎞️ 快照紀錄", btnExport: "📤 產生代碼", btnImport: "📥 匯入代碼", btnReset: "🔄 重置", btnSnapshot: "📸 建立快照", labelZoom: "縮放:", initStep: "初始狀態", renameTitle: "🏷️ 重新命名快照", toastCopy: "已複製到剪貼簿", importSuccess: "數據匯入成功！" },
+            en: { title: "♟️ TacticsBoard Pro v5.9.1", configTitle: "📐 Board & Zoom", ioTitle: "📤 Share & Export", historyTitle: "🎞️ Snapshots", btnExport: "📤 Get Code", btnImport: "📥 Import Code", btnReset: "🔄 Reset", btnSnapshot: "📸 New Snapshot", labelZoom: "Zoom:", initStep: "Initial", renameTitle: "🏷️ Rename Snapshot", toastCopy: "Copied!", importSuccess: "Import success!" }
+        };
+
+        let currentLang = 'zh';
+        // ===== 全域狀態（State） =====
+
+        // 棋盤尺寸（以格子為單位）
+        let BOARD_WIDTH = 6, BOARD_HEIGHT = 8;
+
+        // 棋盤資料：每一格的地形顏色與備註
+        let boardState = [],
+
+            // 所有棋子資料（key = unitId）
+            unitList = {}, nextUnitId = 1;
+
+        // 快照系統
+        let snapshots = [], currentSnapshotIdx = -1;
+
+        // 編輯相關狀態
+        let editR = -1, editC = -1, currentZoom = 1, renamingIdx = -1;
+
+        // 縮放與拖曳
+        let isDragging = false, dragTargetId = null, pressTimer = null, hoverTimer = null;
+
+
+        function showToast(msg) { const t = document.getElementById('toast'); t.innerText = msg || langPack[currentLang].toastCopy; t.style.display = 'block'; setTimeout(() => t.style.display = 'none', 2000); }
+        function toggleLanguage() { currentLang = (currentLang === 'zh') ? 'en' : 'zh'; updateUI(); }
+
+        function updateUI() {
+            const t = langPack[currentLang];
+            document.getElementById('ui-title').innerText = t.title;
+            document.getElementById('ui-config-title').innerText = t.configTitle;
+            document.getElementById('ui-io-title').innerText = t.ioTitle;
+            document.getElementById('ui-history-title').innerText = t.historyTitle;
+            document.getElementById('btn-export').innerText = t.btnExport;
+            document.getElementById('btn-import').innerText = t.btnImport;
+            document.getElementById('btn-reset').innerText = t.btnReset;
+            document.getElementById('btn-snapshot').innerText = t.btnSnapshot;
+            document.getElementById('ui-label-zoom').innerText = t.labelZoom;
+            document.getElementById('ui-rename-title').innerText = t.renameTitle;
+            renderTabs();
+        }
+
+        // --- 核心縮放修復 ---
+        function updateZoom() {
+            currentZoom = parseFloat(document.getElementById('zoom-slider').value);
+            document.getElementById('zoom-val').innerText = Math.round(currentZoom * 100) + "%";
+            const scaler = document.getElementById('board-scaler');
+            const sizer = document.getElementById('board-sizer');
+            const container = document.getElementById('chessboard-container');
+            scaler.style.transform = `scale(${currentZoom})`;
+            sizer.style.width = (container.offsetWidth * currentZoom + 120) + "px";
+            sizer.style.height = (container.offsetHeight * currentZoom + 120) + "px";
+        }
+
+        function initializeBoard() {
+            // 從 UI 讀取棋盤尺寸，若無輸入則使用預設值
+            BOARD_WIDTH = parseInt(document.getElementById('board-width').value) || 6;
+            BOARD_HEIGHT = parseInt(document.getElementById('board-height').value) || 8;
+
+            // 初始化棋盤資料
+            // 每一格包含：
+            // - cellColor：格子顏色
+            // - cellNote：格子備註
+            boardState = Array(BOARD_HEIGHT).fill(0).map(() => Array(BOARD_WIDTH).fill(0).map(() => ({ cellColor: '#5d748f', cellNote: '' })));
+
+            // 清空棋子與快照
+            unitList = {}; nextUnitId = 1; snapshots = [];
+
+            // 建立「初始狀態」快照
+            takeSnapshot(langPack[currentLang].initStep);
+        }
+
+        function renderBoard() {
+            const container = document.getElementById('chessboard-container');
+            container.innerHTML = '';
+            container.style.gridTemplateColumns = `repeat(${BOARD_WIDTH}, 60px)`;
+            for (let r = 0; r < BOARD_HEIGHT; r++) {
+                for (let c = 0; c < BOARD_WIDTH; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell'; cell.dataset.r = r; cell.dataset.c = c;
+                    const s = boardState[r][c];
+                    cell.style.backgroundColor = s.cellColor;
+                    if (s.cellNote) { const n = document.createElement('div'); n.className = 'cell-note-label'; n.innerText = s.cellNote; cell.appendChild(n); }
+
+                    cell.onmousedown = (e) => startPress(e, r, c);
+                    cell.ontouchstart = (e) => startPress(e, r, c);
+                    cell.onmouseenter = (e) => { const uid = getUidAt(r, c); if (uid) hoverTimer = setTimeout(() => showTooltip(uid, e), 500); };
+                    cell.onmouseleave = hideTooltip;
+                    cell.onmousemove = updateTooltipPos;
+                    cell.onclick = (e) => { if (!isDragging) openEditModal(r, c); };
+
+                    const uid = getUidAt(r, c);
+                    if (uid && dragTargetId !== uid) {
+                        const u = unitList[uid];
+                        if (u.moveOrder) { const ol = document.createElement('div'); ol.className = 'move-order-label'; ol.innerText = u.moveOrder; cell.appendChild(ol); }
+                        const unitEl = document.createElement('div');
+                        unitEl.className = `unit ${u.faction}`; unitEl.textContent = u.note || uid;
+                        if (unitEl.textContent.length > 3) unitEl.classList.add('small-text');
+                        if (u.facing) { const ar = document.createElement('div'); ar.className = `unit-arrow facing-${u.facing}`; unitEl.appendChild(ar); }
+                        cell.appendChild(unitEl);
+                    }
+                    container.appendChild(cell);
+                }
+            }
+            setTimeout(updateZoom, 0);
+        }
+
+        function getUidAt(r, c) { return Object.keys(unitList).find(id => unitList[id].r === r && unitList[id].c === c); }
+
+        // --- 拖拽邏輯 ---
+        // 使用「長按 400ms」來避免與點擊編輯衝突
+        function startPress(e, r, c) {
+            const uid = getUidAt(r, c); if (!uid) return;
+
+            // 設定長按計時器
+            pressTimer = setTimeout(() => startDragging(uid, e), 400);
+
+            // 若提早放開，則取消拖曳
+            const cancel = () => clearTimeout(pressTimer);
+            window.addEventListener('mouseup', cancel, { once: true });
+            window.addEventListener('touchend', cancel, { once: true });
+        }
+
+        function startDragging(uid, e) {
+            isDragging = true; dragTargetId = uid; hideTooltip();
+            const u = unitList[uid]; const ghost = document.getElementById('ghost-unit');
+            ghost.className = `unit ${u.faction}`; ghost.textContent = u.note || uid;
+            ghost.style.display = 'flex'; moveGhost(e);
+            renderBoard();
+            window.addEventListener('mousemove', moveGhost);
+            window.addEventListener('touchmove', moveGhost, { passive: false });
+            window.addEventListener('mouseup', endDragging, { once: true });
+            window.addEventListener('touchend', endDragging, { once: true });
+        }
+
+        function moveGhost(e) {
+            const x = e.touches ? e.touches[0].clientX : e.clientX;
+            const y = e.touches ? e.touches[0].clientY : e.clientY;
+            const g = document.getElementById('ghost-unit');
+            g.style.left = x + 'px'; g.style.top = y + 'px';
+            if (e.cancelable) e.preventDefault();
+        }
+
+        function endDragging(e) {
+            const x = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+            const y = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+            const target = document.elementFromPoint(x, y);
+            const cell = target ? target.closest('.cell') : null;
+            if (cell) {
+                const nr = parseInt(cell.dataset.r), nc = parseInt(cell.dataset.c);
+                if (!getUidAt(nr, nc)) { unitList[dragTargetId].r = nr; unitList[dragTargetId].c = nc; }
+            }
+            isDragging = false; dragTargetId = null;
+            document.getElementById('ghost-unit').style.display = 'none';
+            window.removeEventListener('mousemove', moveGhost);
+            window.removeEventListener('touchmove', moveGhost);
+            renderBoard();
+        }
+
+        // --- Tooltip ---
+        function showTooltip(uid, e) {
+            const u = unitList[uid]; if (!u.desc && !u.note) return;
+            const tt = document.getElementById('unit-tooltip');
+            document.getElementById('tt-name').innerText = u.note || `Unit #${uid}`;
+            document.getElementById('tt-desc').innerText = u.desc || "";
+            tt.style.display = 'block'; updateTooltipPos(e);
+        }
+        function updateTooltipPos(e) {
+            const tt = document.getElementById('unit-tooltip');
+            if (tt.style.display === 'block') {
+                const x = (e.touches ? e.touches[0].clientX : e.clientX) + 15;
+                const y = (e.touches ? e.touches[0].clientY : e.clientY) + 15;
+                tt.style.left = x + 'px'; tt.style.top = y + 'px';
+            }
+        }
+        function hideTooltip() { clearTimeout(hoverTimer); document.getElementById('unit-tooltip').style.display = 'none'; }
+
+        // --- 快照管理回歸 ---
+        function takeSnapshot(name) {
+            snapshots.push({ name: name || `Step ${snapshots.length + 1}`, data: JSON.parse(JSON.stringify({ boardState, unitList, nextUnitId, w: BOARD_WIDTH, h: BOARD_HEIGHT })) });
+            currentSnapshotIdx = snapshots.length - 1; renderTabs(); renderBoard();
+        }
+        function loadSnapshot(idx) {
+            const s = snapshots[idx].data;
+            boardState = s.boardState; unitList = s.unitList; nextUnitId = s.nextUnitId;
+            BOARD_WIDTH = s.w; BOARD_HEIGHT = s.h; currentSnapshotIdx = idx;
+            document.getElementById('board-width').value = BOARD_WIDTH; document.getElementById('board-height').value = BOARD_HEIGHT;
+            renderBoard(); renderTabs();
+        }
+        function renderTabs() {
+            const container = document.getElementById('history-tabs-container'); container.innerHTML = '';
+            snapshots.forEach((s, idx) => {
+                const tab = document.createElement('div'); tab.className = `history-tab ${idx === currentSnapshotIdx ? 'active' : ''}`;
+                tab.innerHTML = `<span onclick="loadSnapshot(${idx})">${s.name}</span>`;
+                const ren = document.createElement('div'); ren.className = 'tab-icon-btn'; ren.innerText = '✎'; ren.onclick = () => openRenameModal(idx);
+                tab.appendChild(ren);
+                if (idx !== 0) { const del = document.createElement('div'); del.className = 'tab-icon-btn'; del.innerText = '×'; del.onclick = () => deleteSnapshot(idx); tab.appendChild(del); }
+                container.appendChild(tab);
+            });
+        }
+        function openRenameModal(idx) { renamingIdx = idx; document.getElementById('rename-input').value = snapshots[idx].name; document.getElementById('rename-modal').style.display = 'block'; }
+        function applyRename() { snapshots[renamingIdx].name = document.getElementById('rename-input').value; closeModals(); renderTabs(); }
+        function deleteSnapshot(idx) { snapshots.splice(idx, 1); if (currentSnapshotIdx >= idx) currentSnapshotIdx = Math.max(0, currentSnapshotIdx - 1); loadSnapshot(currentSnapshotIdx); }
+
+        // --- 編輯功能 ---
+        function openEditModal(r, c) {
+
+            // 記錄目前正在編輯的棋盤座標
+            editR = r;
+            editC = c;
+
+            // 不論任何情況，預設都進入「棋子編輯模式」
+            document.getElementById('edit-type').value = 'unit';
+
+            // 嘗試取得該格子的棋子
+            const uid = getUidAt(r, c);
+
+            // ===== 情況一：該格子已有棋子 → 載入棋子資料 =====
+            if (uid) {
+
+                const u = unitList[uid];
+
+                document.getElementById('edit-faction').value = u.faction;
+                document.getElementById('edit-facing').value = u.facing || "";
+                document.getElementById('edit-move-order').value = u.moveOrder || "";
+                document.getElementById('edit-unit-note').value = u.note || "";
+                document.getElementById('edit-unit-desc').value = u.desc || "";
+
+            }
+            // ===== 情況二：該格子沒有棋子 → 準備新增棋子 =====
+            else {
+
+                // 清空棋子表單，避免殘留上一次編輯的資料
+                document.getElementById('edit-faction').value = 'ally';
+                document.getElementById('edit-facing').value = "";
+                document.getElementById('edit-move-order').value = "";
+                document.getElementById('edit-unit-note').value = "";
+                document.getElementById('edit-unit-desc').value = "";
+            }
+
+            // 根據 edit-type（目前一定是 unit）切換顯示欄位
+            toggleEditFields();
+
+            // 顯示編輯 Modal 視窗
+            document.getElementById('edit-modal').style.display = 'block';
+        }
+        function toggleEditFields() {
+            const v = document.getElementById('edit-type').value;
+            document.getElementById('unit-fields').style.display = (v === 'unit' ? 'block' : 'none');
+            document.getElementById('cell-fields').style.display = (v === 'cell' ? 'block' : 'none');
+        }
+        function applyEdit() {
+            const type = document.getElementById('edit-type').value;
+            const uid = getUidAt(editR, editC);
+            if (type === 'clear') { if (uid) delete unitList[uid]; boardState[editR][editC] = { cellColor: '#5d748f', cellNote: '' }; }
+            else if (type === 'unit') {
+                const uData = { faction: document.getElementById('edit-faction').value, facing: document.getElementById('edit-facing').value, moveOrder: document.getElementById('edit-move-order').value, note: document.getElementById('edit-unit-note').value, desc: document.getElementById('edit-unit-desc').value, r: editR, c: editC };
+                if (uid) unitList[uid] = uData; else unitList[nextUnitId++] = uData;
+            } else { if (uid) delete unitList[uid]; boardState[editR][editC] = { cellColor: document.getElementById('edit-cell-color').value, cellNote: document.getElementById('edit-cell-note').value }; }
+            renderBoard(); closeModals();
+        }
+
+        // --- 分享匯入匯出 ---
+        function openExportModal() { document.getElementById('code-area').value = generateDataCode(); document.getElementById('export-actions').style.display = 'flex'; document.getElementById('import-actions').style.display = 'none'; document.getElementById('code-modal').style.display = 'block'; }
+        function openImportModal() { document.getElementById('code-area').value = ''; document.getElementById('export-actions').style.display = 'none'; document.getElementById('import-actions').style.display = 'block'; document.getElementById('code-modal').style.display = 'block'; }
+        function generateDataCode() {
+            const compressed = pako.deflate(new TextEncoder().encode(JSON.stringify({ v: "5.9.1", s: snapshots })));
+            return btoa(String.fromCharCode.apply(null, compressed));
+        }
+        function processImport(ext) {
+            try {
+                const bin = atob(ext || document.getElementById('code-area').value.trim());
+                const decoded = JSON.parse(new TextDecoder().decode(pako.inflate(new Uint8Array(bin.split('').map(c => c.charCodeAt(0))))));
+                if (decoded.s) { snapshots = decoded.s; loadSnapshot(snapshots.length - 1); closeModals(); if (ext) showToast(langPack[currentLang].importSuccess); }
+            } catch (e) { alert("Invalid code."); }
+        }
+        function copyToClipboard(m) {
+            const code = generateDataCode(); let text = code;
+            if (m === 'link') { const u = new URL(window.location.href); u.searchParams.set('data', code); text = u.toString(); }
+            navigator.clipboard.writeText(text).then(() => showToast());
+        }
+
+        function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); }
+        window.onload = () => { initializeBoard(); updateUI(); const p = new URLSearchParams(window.location.search).get('data'); if (p) processImport(p); };
+    </script>
+</body>
+
+</html>
